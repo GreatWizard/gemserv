@@ -54,19 +54,16 @@ impl CertResolver {
                     certs, signing_key_boxed)));
         }
 
-        println!("Successfully loaded {} HTTPS configurations", map.len());
+        println!("Successfully loaded {} TLS configurations", map.len());
 
         Ok(CertResolver{ map })
     }
 }
 
 impl ResolvesServerCert for CertResolver {
-    fn resolve(
-        &self,
-        client_hello: ClientHello,
-    ) -> Option<CertifiedKey> {
-        if let Some(server_name) = client_hello.server_name() {
-            if let Some(cert) = self.map.get(server_name.into()) {
+    fn resolve( &self, client_hello: ClientHello) -> Option<CertifiedKey> {
+        if let Some(url) = client_hello.server_name() {
+            if let Some(cert) = self.map.get(url.into()) {
                 return Some(*cert.clone())
             }
         }
