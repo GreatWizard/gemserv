@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 #[macro_use]
 extern crate serde_derive;
 
@@ -20,20 +21,7 @@ use std::error::Error;
 
 
 mod config;
-
-fn load_certs(path: &String) -> io::Result<Vec<Certificate>> {
-    certs(&mut BufReader::new(File::open(path)?))
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid cert"))
-}
-
-fn load_keys(path: &String) -> PrivateKey {
-    let keyfile = File::open(path)
-            .expect("cannot open private key file");
-    let mut reader = BufReader::new(keyfile);
-    let key = pkcs8_private_keys(&mut reader)
-            .expect("file contains invalid rsa private key");
-    return key[0].clone();
-}
+mod tls;
 
 fn get_content(request: String) -> String {
 
@@ -75,8 +63,8 @@ fn main() -> io::Result<()> {
         .next()
         .ok_or_else(|| io::Error::from(io::ErrorKind::AddrNotAvailable))?;
 
-    let certs = load_certs(&cfg.server[0].cert)?;
-    let keys = load_keys(&cfg.server[0].key);
+    let certs = tls::load_certs(&cfg.server[0].cert)?;
+    let keys = tls::load_key(&cfg.server[0].key);
 
     let mut runtime = runtime::Builder::new()
         .threaded_scheduler()

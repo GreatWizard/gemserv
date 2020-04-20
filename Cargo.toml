@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 tokio = { version = "0.2", features = [ "net", "io-util", "rt-threaded" ] }
 tokio-rustls = "*"
+rustls = "*"
 futures-util = "*"
 toml = "*"
 serde = "*"
