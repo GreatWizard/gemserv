@@ -1,22 +1,21 @@
 extern crate serde_derive;
 extern crate toml;
-use toml::de::Error;
 use std::collections::HashMap;
+use toml::de::Error;
 // use serde_derive::Deserialize;
 
-
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub port: i32,
     pub host: String,
     pub server: Vec<Server>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Server {
     pub url: String,
-    pub dir:  String,
-    pub key:  String,
+    pub dir: String,
+    pub key: String,
     pub cert: String,
 }
 
@@ -26,13 +25,11 @@ impl Config {
         let config: Config = toml::from_str(&fd).unwrap();
         return config;
     }
-    pub fn to_map( &self /*cfg: &config::Config*/) -> HashMap<String, String> {
+    pub fn to_map(&self /*cfg: &config::Config*/) -> HashMap<String, String> {
         let mut map = HashMap::new();
         for srv in &self.server {
             map.insert(srv.url.clone(), srv.dir.clone());
         }
         map
     }
-
 }
-
