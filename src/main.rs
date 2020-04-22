@@ -25,15 +25,6 @@ use url::Url;
 mod config;
 mod tls;
 
-fn get_tls_config(cfg: config::Config) -> rustls::ServerConfig {
-    let store = rustls::RootCertStore::empty();
-    let verifier = rustls::AllowAnyAnonymousOrAuthenticatedClient::new(store);
-    let mut tls_config = rustls::ServerConfig::new(verifier);
-    tls_config.cert_resolver = Arc::new(tls::CertResolver::from_config(cfg).unwrap());
-
-    tls_config
-}
-
 fn get_content(mut path: PathBuf, u: url::Url) -> Result<String, io::Error> {
     let meta = fs::metadata(&path).expect("Unable to read metadata");
     if meta.is_file() {
@@ -132,7 +123,7 @@ fn main() -> io::Result<()> {
         .build()?;
 
     let handle = runtime.handle().clone();
-    let config = get_tls_config(cfg.clone());
+    let config = tls::get_tls_config(cfg.clone());
 
     let acceptor = TlsAcceptor::from(Arc::new(config));
 

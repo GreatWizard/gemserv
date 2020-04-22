@@ -13,6 +13,15 @@ use tokio_rustls::rustls::{Certificate, NoClientAuth, PrivateKey, ServerConfig};
 
 use crate::config;
 
+pub fn get_tls_config(cfg: config::Config) -> rustls::ServerConfig {
+    let store = rustls::RootCertStore::empty();
+    let verifier = rustls::AllowAnyAnonymousOrAuthenticatedClient::new(store);
+    let mut tls_config = rustls::ServerConfig::new(verifier);
+    tls_config.cert_resolver = Arc::new(CertResolver::from_config(cfg).unwrap());
+
+    tls_config
+}
+
 pub fn load_certs(path: &String) -> io::Result<Vec<Certificate>> {
     certs(&mut BufReader::new(File::open(path)?))
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid cert"))
