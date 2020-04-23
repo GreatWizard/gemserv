@@ -12,6 +12,7 @@ use std::io::{self, BufReader};
 use std::net::ToSocketAddrs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
@@ -98,9 +99,13 @@ async fn handle_connection(
     }
 
     let mut dir = String::new();
+    let mut cgi = String::new();
     for server in cfg.server {
         if Some(server.hostname.as_str()) == url.host_str() {
             dir = server.dir;
+            if server.cgi.is_some() {
+                cgi = server.cgi.unwrap();
+            }
         }
     }
 
@@ -138,6 +143,34 @@ async fn handle_connection(
             path.push("index.gemini");
         }
     }
+
+    // add timeout
+    if cgi.trim_end_matches("/") == path.parent().unwrap().to_str().unwrap() {
+        let cmd = Command::new(path.to_str().unwrap())
+            .env_clear()
+            .wait_timeout(time)
+            .output()?;
+        if !cmd.status.success() {
+            send(
+                stream,
+                status::Status::CGIError,
+                "CGI Error!".to_string(),
+                None,
+            )
+            .await?;
+            return Ok(());
+        }
+        let cmd = String::from_utf8(cmd.stdout).unwrap();
+        send(
+            stream,
+            status::Status::Success,
+            "text/gemini".to_string(),
+            Some(cmd),
+        )
+        .await?;
+        return Ok(());
+    }
+
     let content = get_content(path, url)?;
     send(
         stream,

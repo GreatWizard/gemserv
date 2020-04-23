@@ -17,6 +17,7 @@ pub struct Server {
     pub dir: String,
     pub key: String,
     pub cert: String,
+    pub cgi: Option<String>,
 }
 
 impl Config {
