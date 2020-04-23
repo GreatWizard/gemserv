@@ -25,26 +25,11 @@ use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 use url::Url;
 
+mod cgi;
 mod config;
 mod status;
 mod tls;
-
-async fn send(
-    mut stream: TlsStream<TcpStream>,
-    stat: status::Status,
-    meta: String,
-    body: Option<String>,
-) -> Result<(), io::Error> {
-    let mut s = format!("{}\t{}\r\n", stat as u8, meta);
-    stream.write_all(s.as_bytes()).await?;
-    stream.flush().await?;
-    if let Some(b) = body {
-        s = format!("{}", b);
-    }
-    stream.write_all(s.as_bytes()).await?;
-    stream.flush().await?;
-    Ok(())
-}
+mod util;
 
 fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
     let meta = fs::metadata(&path).expect("Unable to read metadata");
@@ -77,10 +62,10 @@ async fn handle_connection(
     let url = Url::parse(&request).unwrap();
 
     if url.scheme() != "gemini" {
-        send(
+        util::send(
             stream,
             status::Status::ProxyRequestRefused,
-            "Not a gemini scheme!\r\n".to_string(),
+            "Not a gemini scheme!\r\n",
             None,
         )
         .await?;
@@ -88,10 +73,10 @@ async fn handle_connection(
     }
 
     if url.path().to_string().contains("..") {
-        send(
+        util::send(
             stream,
             status::Status::PermanentFailure,
-            "Not in path!".to_string(),
+            "Not in path!",
             None,
         )
         .await?;
@@ -100,11 +85,11 @@ async fn handle_connection(
 
     let mut dir = String::new();
     let mut cgi = String::new();
-    for server in cfg.server {
+    for server in &cfg.server {
         if Some(server.hostname.as_str()) == url.host_str() {
-            dir = server.dir;
+            dir = server.dir.to_string();
             if server.cgi.is_some() {
-                cgi = server.cgi.unwrap();
+                cgi = server.cgi.as_ref().unwrap().to_string();
             }
         }
     }
@@ -115,13 +100,7 @@ async fn handle_connection(
     }
 
     if !path.exists() {
-        send(
-            stream,
-            status::Status::NotFound,
-            "Not found!\r\n".to_string(),
-            None,
-        )
-        .await?;
+        util::send(stream, status::Status::NotFound, "Not found!\r\n", None).await?;
         return Ok(());
     }
 
@@ -130,10 +109,10 @@ async fn handle_connection(
 
     if meta.is_dir() {
         if !url.path().ends_with("/") {
-            send(
+            util::send(
                 stream,
                 status::Status::RedirectPermanent,
-                format!("{}/\r\n", url),
+                format!("{}/\r\n", url).as_str(),
                 None,
             )
             .await?;
@@ -146,36 +125,15 @@ async fn handle_connection(
 
     // add timeout
     if cgi.trim_end_matches("/") == path.parent().unwrap().to_str().unwrap() {
-        let cmd = Command::new(path.to_str().unwrap())
-            .env_clear()
-            .wait_timeout(time)
-            .output()?;
-        if !cmd.status.success() {
-            send(
-                stream,
-                status::Status::CGIError,
-                "CGI Error!".to_string(),
-                None,
-            )
-            .await?;
-            return Ok(());
-        }
-        let cmd = String::from_utf8(cmd.stdout).unwrap();
-        send(
-            stream,
-            status::Status::Success,
-            "text/gemini".to_string(),
-            Some(cmd),
-        )
-        .await?;
+        cgi::cgi(stream, path, url, cfg).await?;
         return Ok(());
     }
 
     let content = get_content(path, url)?;
-    send(
+    util::send(
         stream,
         status::Status::Success,
-        "text/gemini".to_string(),
+        "text/gemini",
         Some(content),
     )
     .await?;
