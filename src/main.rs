@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+#![allow(dead_code)]
 #[macro_use]
 extern crate serde_derive;
 
@@ -9,6 +10,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::net::ToSocketAddrs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
@@ -23,9 +25,27 @@ use tokio_rustls::TlsAcceptor;
 use url::Url;
 
 mod config;
+mod status;
 mod tls;
 
-fn get_content(mut path: PathBuf, u: url::Url) -> Result<String, io::Error> {
+async fn send(
+    mut stream: TlsStream<TcpStream>,
+    stat: status::Status,
+    meta: String,
+    body: Option<String>,
+) -> Result<(), io::Error> {
+    let mut s = format!("{}\t{}\r\n", stat as u8, meta);
+    stream.write_all(s.as_bytes()).await?;
+    stream.flush().await?;
+    if let Some(b) = body {
+        s = format!("{}", b);
+    }
+    stream.write_all(s.as_bytes()).await?;
+    stream.flush().await?;
+    Ok(())
+}
+
+fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
     let meta = fs::metadata(&path).expect("Unable to read metadata");
     if meta.is_file() {
         return Ok(std::fs::read_to_string(path).expect("Unable to read file"));
@@ -56,20 +76,30 @@ async fn handle_connection(
     let url = Url::parse(&request).unwrap();
 
     if url.scheme() != "gemini" {
-        stream.write_all(&b"53\tnot gemini scheme!\r\n"[..]).await?;
-        stream.flush().await?;
-        panic!("Not gemini scheme");
+        send(
+            stream,
+            status::Status::ProxyRequestRefused,
+            "Not a gemini scheme!\r\n".to_string(),
+            None,
+        )
+        .await?;
+        return Ok(());
     }
 
     if url.path().to_string().contains("..") {
-        stream.write_all(&b"50\tNot in path\r\n"[..]).await?;
-        stream.flush().await?;
-        panic!("Contains ..");
+        send(
+            stream,
+            status::Status::PermanentFailure,
+            "Not in path!".to_string(),
+            None,
+        )
+        .await?;
+        return Ok(());
     }
 
     let mut dir = String::new();
     for server in cfg.server {
-        if Some(server.url.as_str()) == url.host_str() {
+        if Some(server.hostname.as_str()) == url.host_str() {
             dir = server.dir;
         }
     }
@@ -80,31 +110,42 @@ async fn handle_connection(
     }
 
     if !path.exists() {
-        stream.write_all(&b"51\tNot found!\r\n"[..]).await?;
-        stream.flush().await?;
+        send(
+            stream,
+            status::Status::NotFound,
+            "Not found!\r\n".to_string(),
+            None,
+        )
+        .await?;
         return Ok(());
     }
 
     // add error
     let meta = fs::metadata(&path).expect("Unable to read metadata");
+
     if meta.is_dir() {
         if !url.path().ends_with("/") {
-            stream
-                .write_all(format!("31\t{}/\r\n", url).as_bytes())
-                .await?;
-            stream.flush().await?;
+            send(
+                stream,
+                status::Status::RedirectPermanent,
+                format!("{}/\r\n", url),
+                None,
+            )
+            .await?;
+            return Ok(());
         }
         if path.join("index.gemini").exists() {
             path.push("index.gemini");
         }
     }
-
-    stream.write_all(&b"20\ttext/gemini\r\n"[..]).await?;
-    stream.flush().await?;
-
     let content = get_content(path, url)?;
-    stream.write_all(content.as_bytes()).await?;
-    stream.flush().await?;
+    send(
+        stream,
+        status::Status::Success,
+        "text/gemini".to_string(),
+        Some(content),
+    )
+    .await?;
 
     Ok(())
 }

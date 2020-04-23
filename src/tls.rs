@@ -34,6 +34,8 @@ pub fn load_key(path: &String) -> PrivateKey {
     return key[0].clone();
 }
 
+// Rustls won't let self signed certs be used with sni which gemini requires.
+// At 1.4.2 in https://gemini.circumlunar.space/docs/spec-spec.txt
 pub struct CertResolver {
     map: HashMap<String, Box<CertifiedKey>>,
 }
@@ -44,19 +46,14 @@ impl CertResolver {
 
         for server in cfg.server.iter() {
             let key = load_key(&server.key);
-            //    .chain_err(|| format!("Failed to load private key from {}", https.key_file))?;
+            //    .chain_err(|| format!("Failed to load private key from {}", server.key))?;
             let certs = load_certs(&server.cert).unwrap();
             //    .chain_err(|| format!("Failed to load certificate from {}", server.cert));
-            /*
-            let signer: Arc<Box<CertifiedKey>> = Arc::new(Box::new(
-                CertifiedKey::new(&key).map_err(|_| format!("Failed to create signer for {}", server.url))
-            ));
-            */
             let signing_key = RSASigningKey::new(&key).unwrap();
 
             let signing_key_boxed: Arc<Box<dyn SigningKey>> = Arc::new(Box::new(signing_key));
             map.insert(
-                server.url.clone(),
+                server.hostname.clone(),
                 Box::new(rustls::sign::CertifiedKey::new(certs, signing_key_boxed)),
             );
         }
@@ -69,8 +66,8 @@ impl CertResolver {
 
 impl ResolvesServerCert for CertResolver {
     fn resolve(&self, client_hello: ClientHello) -> Option<CertifiedKey> {
-        if let Some(url) = client_hello.server_name() {
-            if let Some(cert) = self.map.get(url.into()) {
+        if let Some(hostname) = client_hello.server_name() {
+            if let Some(cert) = self.map.get(hostname.into()) {
                 return Some(*cert.clone());
             }
         }

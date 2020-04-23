@@ -13,7 +13,7 @@ pub struct Config {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Server {
-    pub url: String,
+    pub hostname: String,
     pub dir: String,
     pub key: String,
     pub cert: String,
@@ -25,10 +25,10 @@ impl Config {
         let config: Config = toml::from_str(&fd).unwrap();
         return config;
     }
-    pub fn to_map(&self /*cfg: &config::Config*/) -> HashMap<String, String> {
+    pub fn to_map(&self) -> HashMap<String, String> {
         let mut map = HashMap::new();
         for srv in &self.server {
-            map.insert(srv.url.clone(), srv.dir.clone());
+            map.insert(srv.hostname.clone(), srv.dir.clone());
         }
         map
     }
