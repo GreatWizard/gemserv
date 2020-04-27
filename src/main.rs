@@ -26,6 +26,8 @@ use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 use url::Url;
 use chrono::{DateTime, Utc};
+use mime_guess;
+use mime;
 
 mod cgi;
 mod config;
@@ -114,10 +116,18 @@ async fn handle_connection(mut con: util::Connection) -> Result<(), io::Error> {
         return Ok(());
     }
 
+    let mut mime = "text/gemini";
+    let m: mime::Mime;
+    
+    if path.extension().unwrap().to_str() != Some("gemini") {
+        m = mime_guess::from_path(&path).first().unwrap();
+        mime = m.essence_str();
+    }
+
     let content = get_content(path, url)?;
     con.send_body(
         status::Status::Success,
-        "text/gemini",
+        mime,
         Some(content),
     )
     .await?;

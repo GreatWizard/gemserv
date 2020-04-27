@@ -18,9 +18,9 @@ pub async fn cgi(mut con: util::Connection, path: PathBuf, url: Url) -> Result<(
     envs.insert("SERVER_PROTOCOL", "GEMINI");
     let addr = con.peer_addr.ip().to_string();
     envs.insert("REMOTE_ADDR", &addr);
+    envs.insert("REMOTE_HOST", &addr);
     let port = con.peer_addr.port().to_string();
     envs.insert("REMOTE_PORT", &port);
-    // envs.insert("SERVER_PORT", con.cfg.port.clone().to_string());
 
     if let Some(q) = url.query() {
         envs.insert("QUERY_STRING", q);
@@ -36,9 +36,6 @@ pub async fn cgi(mut con: util::Connection, path: PathBuf, url: Url) -> Result<(
         return Ok(());
     }
     let cmd = String::from_utf8(cmd.stdout).unwrap();
-    // if cmd.starts_with("20") {
     con.send_raw(cmd).await?;
-    //util::send_body(stream, status::Status::Success, "text/gemini", Some(cmd)).await?;
-    // }
     return Ok(());
 }
