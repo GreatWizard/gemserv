@@ -1,15 +1,14 @@
 use std::collections::HashMap;
-use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::sync::Arc;
 
 use rustls::sign::CertifiedKey;
-use rustls::sign::{RSASigningKey, Signer, SigningKey};
+use rustls::sign::{RSASigningKey, SigningKey};
 use rustls::ClientHello;
-use rustls::{ResolvesServerCert, SignatureScheme};
+use rustls::ResolvesServerCert;
 use tokio_rustls::rustls::internal::pemfile::{certs, pkcs8_private_keys};
-use tokio_rustls::rustls::{Certificate, NoClientAuth, PrivateKey, ServerConfig};
+use tokio_rustls::rustls::{Certificate, PrivateKey};
 
 use crate::config;
 
@@ -30,7 +29,7 @@ pub fn load_certs(path: &String) -> io::Result<Vec<Certificate>> {
 pub fn load_key(path: &String) -> PrivateKey {
     let keyfile = File::open(path).expect("cannot open private key file");
     let mut reader = BufReader::new(keyfile);
-    let key = pkcs8_private_keys(&mut reader).expect("file contains invalid rsa private key");
+    let key = pkcs8_private_keys(&mut reader).expect("file contains invalid pkcs8 private key");
     return key[0].clone();
 }
 
@@ -46,9 +45,7 @@ impl CertResolver {
 
         for server in cfg.server.iter() {
             let key = load_key(&server.key);
-            //    .chain_err(|| format!("Failed to load private key from {}", server.key))?;
             let certs = load_certs(&server.cert).unwrap();
-            //    .chain_err(|| format!("Failed to load certificate from {}", server.cert));
             let signing_key = RSASigningKey::new(&key).unwrap();
 
             let signing_key_boxed: Arc<Box<dyn SigningKey>> = Arc::new(Box::new(signing_key));
@@ -57,8 +54,6 @@ impl CertResolver {
                 Box::new(rustls::sign::CertifiedKey::new(certs, signing_key_boxed)),
             );
         }
-
-        println!("Successfully loaded {} TLS configurations", map.len());
 
         Ok(CertResolver { map })
     }

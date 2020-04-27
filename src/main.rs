@@ -9,6 +9,7 @@ use std::error::Error;
 use std::fs;
 use std::fs::File;
 use std::io::{self, BufReader};
+use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
@@ -24,6 +25,7 @@ use tokio_rustls::rustls::{Certificate, NoClientAuth, PrivateKey, ServerConfig};
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 use url::Url;
+use chrono::{DateTime, Utc};
 
 mod cgi;
 mod config;
@@ -31,76 +33,70 @@ mod status;
 mod tls;
 mod util;
 
+pub struct Connection {
+    stream: TlsStream<TcpStream>,
+    peer_addr: SocketAddr,
+    hostname: String,
+    dir: String,
+    cgi: String,
+}
+
 fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
     let meta = fs::metadata(&path).expect("Unable to read metadata");
     if meta.is_file() {
         return Ok(std::fs::read_to_string(path).expect("Unable to read file"));
     }
 
-    let mut list = String::from("# Directory Listing\n\n");
+    let mut list = String::from("# Directory Listing\r\n\r\n");
+    list.push_str(format!("Path: {}\r\n\r\n", u.path()).as_str());
     // needs work
     for file in fs::read_dir(path)? {
         if let Ok(file) = file {
             let f = file.file_name().to_str().unwrap().to_owned();
             let p = u.join(&f).unwrap().as_str().to_owned();
-            println!("=>\t{} {}\r\n", p, f);
-            list.push_str(format!("=> {} {}\n", p, f).as_str());
+            list.push_str(format!("=> {} {}\r\n", p, f).as_str());
         }
     }
     return Ok(list);
 }
 
-async fn handle_connection(
-    mut stream: TlsStream<TcpStream>,
-    cfg: config::Config,
-) -> Result<(), io::Error> {
+async fn handle_connection(mut con: Connection) -> Result<(), io::Error> {
+    let now: DateTime<Utc> = Utc::now();
+    println!("{} New Connection: {}", now, con.peer_addr);
     let mut buffer = [0; 512];
-    stream.read(&mut buffer).await?;
+    con.stream.read(&mut buffer).await?;
     let request = String::from_utf8_lossy(&buffer[..]).to_owned();
     println!("Request: {}", request);
 
     let url = Url::parse(&request).unwrap();
 
+    if Some(con.hostname.as_str()) != url.host_str() {
+        util::send_status(con.stream, status::Status::PermanentFailure, "Url doesn't match certificate!").await?;
+        return Ok(());
+    }
+
     if url.scheme() != "gemini" {
-        util::send(
-            stream,
+        util::send_status(
+            con.stream,
             status::Status::ProxyRequestRefused,
             "Not a gemini scheme!\r\n",
-            None,
         )
         .await?;
         return Ok(());
     }
 
     if url.path().to_string().contains("..") {
-        util::send(
-            stream,
-            status::Status::PermanentFailure,
-            "Not in path!",
-            None,
-        )
-        .await?;
+        util::send_status(con.stream, status::Status::PermanentFailure, "Not in path!").await?;
         return Ok(());
     }
 
-    let mut dir = String::new();
-    let mut cgi = String::new();
-    for server in &cfg.server {
-        if Some(server.hostname.as_str()) == url.host_str() {
-            dir = server.dir.to_string();
-            if server.cgi.is_some() {
-                cgi = server.cgi.as_ref().unwrap().to_string();
-            }
-        }
-    }
-
-    let mut path = PathBuf::from(dir);
+    let mut path = PathBuf::from(&con.dir);
     if url.path() != "" || url.path() != "/" {
         path.push(url.path().trim_start_matches("/"));
     }
 
     if !path.exists() {
-        util::send(stream, status::Status::NotFound, "Not found!\r\n", None).await?;
+        util::send_status(con.stream, status::Status::NotFound, "Not found!\r\n").await?;
         return Ok(());
     }
 
@@ -109,11 +105,10 @@ async fn handle_connection(
 
     if meta.is_dir() {
         if !url.path().ends_with("/") {
-            util::send(
-                stream,
+            util::send_status(
+                con.stream,
                 status::Status::RedirectPermanent,
                 format!("{}/\r\n", url).as_str(),
-                None,
             )
             .await?;
             return Ok(());
@@ -124,14 +119,14 @@ async fn handle_connection(
     }
 
     // add timeout
-    if cgi.trim_end_matches("/") == path.parent().unwrap().to_str().unwrap() {
-        cgi::cgi(stream, path, url, cfg).await?;
+    if con.cgi.trim_end_matches("/") == path.parent().unwrap().to_str().unwrap() {
+        cgi::cgi(con, path, url).await?;
         return Ok(());
     }
 
     let content = get_content(path, url)?;
-    util::send(
-        stream,
+    util::send_body(
+        con.stream,
         status::Status::Success,
         "text/gemini",
         Some(content),
@@ -143,6 +138,7 @@ async fn handle_connection(
 
 fn main() -> io::Result<()> {
     let cfg = config::Config::new("config.toml");
+    println!("Serving {} vhosts", cfg.server.len());
 
     let addr = format!("{}:{}", cfg.host, cfg.port);
     addr.to_socket_addrs()?
@@ -167,9 +163,30 @@ fn main() -> io::Result<()> {
             let cfg = cfg.clone();
 
             let fut = async move {
-                let stream = acceptor.accept(stream).await?;
-                handle_connection(stream, cfg).await?;
-                println!("Hello: {}", peer_addr);
+                let mut stream = acceptor.accept(stream).await?;
+                let (_, sni) = TlsStream::get_mut(&mut stream);
+                let sni = sni.get_sni_hostname();
+                let mut dir = String::new();
+                let mut cgi = String::new();
+                let mut hostname = String::new();
+                for server in &cfg.server {
+                    if Some(server.hostname.as_str()) == sni {
+                        hostname = sni.unwrap().to_string();
+                        dir = server.dir.to_string();
+                        if server.cgi.is_some() {
+                            cgi = server.cgi.as_ref().unwrap().to_string();
+                        }
+                    }
+                }
+
+                let con = Connection {
+                    stream,
+                    peer_addr,
+                    hostname,
+                    dir,
+                    cgi,
+                };
+                handle_connection(con).await?;
 
                 Ok(()) as io::Result<()>
             };

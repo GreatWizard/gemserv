@@ -5,7 +5,16 @@ use tokio_rustls::server::TlsStream;
 
 use crate::status;
 
-pub async fn send(
+pub async fn send_status(
+    stream: TlsStream<TcpStream>,
+    stat: status::Status,
+    meta: &str,
+) -> Result<(), io::Error> {
+    send_body(stream, stat, meta, None).await?;
+    Ok(())
+}
+
+pub async fn send_body(
     mut stream: TlsStream<TcpStream>,
     stat: status::Status,
     meta: &str,
@@ -17,7 +26,12 @@ pub async fn send(
     if let Some(b) = body {
         s = format!("{}", b);
     }
-    stream.write_all(s.as_bytes()).await?;
+    send_raw(stream, s).await?;
+    Ok(())
+}
+
+pub async fn send_raw(mut stream: TlsStream<TcpStream>, body: String) -> Result<(), io::Error> {
+    stream.write_all(body.as_bytes()).await?;
     stream.flush().await?;
     Ok(())
 }
