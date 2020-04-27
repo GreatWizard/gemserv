@@ -33,14 +33,6 @@ mod status;
 mod tls;
 mod util;
 
-pub struct Connection {
-    stream: TlsStream<TcpStream>,
-    peer_addr: SocketAddr,
-    hostname: String,
-    dir: String,
-    cgi: String,
-}
-
 fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
     let meta = fs::metadata(&path).expect("Unable to read metadata");
     if meta.is_file() {
@@ -60,7 +52,7 @@ fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
     return Ok(list);
 }
 
-async fn handle_connection(mut con: Connection) -> Result<(), io::Error> {
+async fn handle_connection(mut con: util::Connection) -> Result<(), io::Error> {
     let now: DateTime<Utc> = Utc::now();
     println!("{} New Connection: {}", now, con.peer_addr);
     let mut buffer = [0; 512];
@@ -71,13 +63,12 @@ async fn handle_connection(mut con: Connection) -> Result<(), io::Error> {
     let url = Url::parse(&request).unwrap();
 
     if Some(con.hostname.as_str()) != url.host_str() {
-        util::send_status(con.stream, status::Status::PermanentFailure, "Url doesn't match certificate!").await?;
+        con.send_status(status::Status::PermanentFailure, "Url doesn't match certificate!").await?;
         return Ok(());
     }
 
     if url.scheme() != "gemini" {
-        util::send_status(
-            con.stream,
+        con.send_status(
             status::Status::ProxyRequestRefused,
             "Not a gemini scheme!\r\n",
         )
@@ -86,7 +77,7 @@ async fn handle_connection(mut con: Connection) -> Result<(), io::Error> {
     }
 
     if url.path().to_string().contains("..") {
-        util::send_status(con.stream, status::Status::PermanentFailure, "Not in path!").await?;
+        con.send_status(status::Status::PermanentFailure, "Not in path!").await?;
         return Ok(());
     }
 
@@ -96,7 +87,7 @@ async fn handle_connection(mut con: Connection) -> Result<(), io::Error> {
     }
 
     if !path.exists() {
-        util::send_status(con.stream, status::Status::NotFound, "Not found!\r\n").await?;
+        con.send_status(status::Status::NotFound, "Not found!\r\n").await?;
         return Ok(());
     }
 
@@ -105,8 +96,7 @@ async fn handle_connection(mut con: Connection) -> Result<(), io::Error> {
 
     if meta.is_dir() {
         if !url.path().ends_with("/") {
-            util::send_status(
-                con.stream,
+            con.send_status(
                 status::Status::RedirectPermanent,
                 format!("{}/\r\n", url).as_str(),
             )
@@ -125,8 +115,7 @@ async fn handle_connection(mut con: Connection) -> Result<(), io::Error> {
     }
 
     let content = get_content(path, url)?;
-    util::send_body(
-        con.stream,
+    con.send_body(
         status::Status::Success,
         "text/gemini",
         Some(content),
@@ -179,7 +168,7 @@ fn main() -> io::Result<()> {
                     }
                 }
 
-                let con = Connection {
+                let con = util::Connection {
                     stream,
                     peer_addr,
                     hostname,

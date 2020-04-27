@@ -9,9 +9,8 @@ use url::Url;
 use crate::config;
 use crate::status;
 use crate::util;
-use crate::Connection;
 
-pub async fn cgi(con: Connection, path: PathBuf, url: Url) -> Result<(), io::Error> {
+pub async fn cgi(mut con: util::Connection, path: PathBuf, url: Url) -> Result<(), io::Error> {
     let mut envs = HashMap::new();
     envs.insert("GEMINI_URL", url.as_str());
     envs.insert("SERVER_NAME", url.host_str().unwrap());
@@ -33,12 +32,12 @@ pub async fn cgi(con: Connection, path: PathBuf, url: Url) -> Result<(), io::Err
         .output()
         .unwrap();
     if !cmd.status.success() {
-        util::send_status(con.stream, status::Status::CGIError, "CGI Error!").await?;
+        con.send_status(status::Status::CGIError, "CGI Error!").await?;
         return Ok(());
     }
     let cmd = String::from_utf8(cmd.stdout).unwrap();
     // if cmd.starts_with("20") {
-    util::send_raw(con.stream, cmd).await?;
+    con.send_raw(cmd).await?;
     //util::send_body(stream, status::Status::Success, "text/gemini", Some(cmd)).await?;
     // }
     return Ok(());
