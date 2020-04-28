@@ -1,0 +1,3 @@
+Gemserv is a gemini server written in rust. It supports vhosts and cgi. To run
+use "cargo run /path/to/config" 
+

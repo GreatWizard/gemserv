@@ -1,0 +1,17 @@
+port = 1965
+# use "::" for ipv6 and ipv4 or "0.0.0.0" for ipv4 only
+host = "::"
+
+[[server]]
+hostname = "example.com"
+dir = "/path/to/serv"
+key = "/path/to/key"
+cert = "/path/to/cert"
+# cgi dir is optional
+cgi = "/path/to/cgi-bin/"
+
+[[server]]
+hostname = "example.net"
+dir = "/path/to/serv/"
+key = "/path/to/key"
+cert = "/path/to/cert"
