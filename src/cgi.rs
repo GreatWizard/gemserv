@@ -8,9 +8,9 @@ use url::Url;
 
 use crate::config;
 use crate::status;
-use crate::util;
+use crate::conn;
 
-pub async fn cgi(mut con: util::Connection, path: PathBuf, url: Url) -> Result<(), io::Error> {
+pub async fn cgi(mut con: conn::Connection, path: PathBuf, url: Url) -> Result<(), io::Error> {
     let mut envs = HashMap::new();
     envs.insert("GEMINI_URL", url.as_str());
     envs.insert("SERVER_NAME", url.host_str().unwrap());

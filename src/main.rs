@@ -34,7 +34,7 @@ mod cgi;
 mod config;
 mod status;
 mod tls;
-mod util;
+mod conn;
 
 fn get_mime(path: &PathBuf) -> String {
     let mut mime = "text/gemini";
@@ -51,7 +51,7 @@ fn get_mime(path: &PathBuf) -> String {
     mime.to_string()
 }
 
-async fn get_binary(mut con: util::Connection, path:PathBuf, meta: String) -> io::Result<()> {
+async fn get_binary(mut con: conn::Connection, path:PathBuf, meta: String) -> io::Result<()> {
     let fd = File::open(path)?;
     let mut reader = BufReader::with_capacity(1024*1024,fd);
     con.send_status(status::Status::Success, &meta).await?;
@@ -88,7 +88,7 @@ fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
     return Ok(list);
 }
 
-async fn handle_connection(mut con: util::Connection) -> Result<(), io::Error> {
+async fn handle_connection(mut con: conn::Connection) -> Result<(), io::Error> {
     let now: DateTime<Utc> = Utc::now();
     println!("{} New Connection: {}", now, con.peer_addr);
     let mut buffer = [0; 512];
@@ -209,7 +209,7 @@ fn main() -> io::Result<()> {
                     }
                 }
 
-                let con = util::Connection {
+                let con = conn::Connection {
                     stream,
                     peer_addr,
                     hostname,
