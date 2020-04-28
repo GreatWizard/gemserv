@@ -34,12 +34,12 @@ pub async fn send_body(
     if let Some(b) = body {
         s += &b;
     }
-    self.send_raw(s).await?;
+    self.send_raw(s.as_bytes()).await?;
     Ok(())
 }
 
-pub async fn send_raw(&mut self, body: String) -> Result<(), io::Error> {
-    self.stream.write_all(body.as_bytes()).await?;
+pub async fn send_raw(&mut self, body: &[u8]) -> Result<(), io::Error> {
+    self.stream.write_all(body).await?;
     self.stream.flush().await?;
     Ok(())
 }

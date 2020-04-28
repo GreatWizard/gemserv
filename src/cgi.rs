@@ -36,6 +36,6 @@ pub async fn cgi(mut con: util::Connection, path: PathBuf, url: Url) -> Result<(
         return Ok(());
     }
     let cmd = String::from_utf8(cmd.stdout).unwrap();
-    con.send_raw(cmd).await?;
+    con.send_raw(cmd.as_bytes()).await?;
     return Ok(());
 }

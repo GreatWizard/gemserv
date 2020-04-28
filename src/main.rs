@@ -8,7 +8,8 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
 use std::fs::File;
-use std::io::{self, BufReader};
+use std::io::{self, BufReader, BufRead};
+use std::io::prelude::*;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::os::unix::fs::PermissionsExt;
@@ -34,6 +35,39 @@ mod config;
 mod status;
 mod tls;
 mod util;
+
+fn get_mime(path: &PathBuf) -> String {
+    let mut mime = "text/gemini";
+    let m: mime::Mime;
+
+    let ext = match path.extension() {
+        Some(p) => p.to_str().unwrap(),
+        None => mime,
+    };
+    if ext != "gemini" {
+        m = mime_guess::from_ext(ext).first().unwrap();
+        mime = m.essence_str();
+    } 
+    mime.to_string()
+}
+
+async fn get_binary(mut con: util::Connection, path:PathBuf, meta: String) -> io::Result<()> {
+    let fd = File::open(path)?;
+    let mut reader = BufReader::with_capacity(1024*1024,fd);
+    con.send_status(status::Status::Success, &meta).await?;
+    loop {
+        let len = {
+            let buf = reader.fill_buf()?;
+            con.send_raw(buf).await?;
+            buf.len()
+        };
+        if len == 0 {
+            break
+        }
+        reader.consume(len);
+    }
+    Ok(())
+}
 
 fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
     let meta = fs::metadata(&path).expect("Unable to read metadata");
@@ -116,18 +150,15 @@ async fn handle_connection(mut con: util::Connection) -> Result<(), io::Error> {
         return Ok(());
     }
 
-    let mut mime = "text/gemini";
-    let m: mime::Mime;
-    
-    if path.extension().unwrap().to_str() != Some("gemini") {
-        m = mime_guess::from_path(&path).first().unwrap();
-        mime = m.essence_str();
+    let mime = get_mime(&path);
+    if !mime.starts_with("text/") {
+        get_binary(con, path, mime).await?;
+        return Ok(());
     }
-
     let content = get_content(path, url)?;
     con.send_body(
         status::Status::Success,
-        mime,
+        mime.as_str(),
         Some(content),
     )
     .await?;
