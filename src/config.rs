@@ -2,6 +2,8 @@ extern crate serde_derive;
 extern crate toml;
 use std::collections::HashMap;
 use toml::de::Error;
+use std::io;
+use std::path::Path;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
@@ -20,10 +22,10 @@ pub struct Server {
 }
 
 impl Config {
-    pub fn new(file: &str) -> Config {
+    pub fn new(file: &Path) -> Result<Config, Error> {
         let fd = std::fs::read_to_string(file).unwrap();
         let config: Config = toml::from_str(&fd).unwrap();
-        return config;
+        return Ok(config);
     }
     pub fn to_map(&self) -> HashMap<String, Server> {
         let mut map = HashMap::new();

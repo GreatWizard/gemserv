@@ -16,6 +16,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
+use std::env;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
@@ -112,11 +113,6 @@ async fn handle_connection(mut con: conn::Connection) -> Result<(), io::Error> {
         return Ok(());
     }
 
-    if url.path().to_string().contains("..") {
-        con.send_status(status::Status::PermanentFailure, "Not in path!").await?;
-        return Ok(());
-    }
-
     let mut path = PathBuf::from(&con.dir);
     if url.path() != "" || url.path() != "/" {
         path.push(url.path().trim_start_matches("/"));
@@ -167,7 +163,17 @@ async fn handle_connection(mut con: conn::Connection) -> Result<(), io::Error> {
 }
 
 fn main() -> io::Result<()> {
-    let cfg = config::Config::new("config.toml");
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        println!("Please run with the path to the config file.");
+        return Ok(());
+    }
+    let p = Path::new(&args[1]);
+    if !p.exists() {
+        println!("Config file doesn't exist");
+        return Ok(());
+    }
+    let cfg = config::Config::new(&p)?;
     println!("Serving {} vhosts", cfg.server.len());
 
     let addr = format!("{}:{}", cfg.host, cfg.port);
@@ -199,6 +205,7 @@ fn main() -> io::Result<()> {
                 let mut dir = String::new();
                 let mut cgi = String::new();
                 let mut hostname = String::new();
+
                 for server in &cfg.server {
                     if Some(server.hostname.as_str()) == sni {
                         hostname = sni.unwrap().to_string();
