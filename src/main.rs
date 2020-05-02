@@ -43,7 +43,7 @@ fn get_mime(path: &PathBuf) -> String {
 
     let ext = match path.extension() {
         Some(p) => p.to_str().unwrap(),
-        None => mime,
+        None => return mime.to_string(),
     };
     if ext != "gemini" {
         m = mime_guess::from_ext(ext).first().unwrap();
