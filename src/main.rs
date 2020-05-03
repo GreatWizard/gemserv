@@ -77,13 +77,18 @@ fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
     }
 
     let mut list = String::from("# Directory Listing\r\n\r\n");
-    list.push_str(format!("Path: {}\r\n\r\n", u.path()).as_str());
+    list.push_str(&format!("Path: {}\r\n\r\n", u.path()));
     // needs work
-    for file in fs::read_dir(path)? {
+    for file in fs::read_dir(&path)? {
         if let Ok(file) = file {
-            let f = file.file_name().to_str().unwrap().to_owned();
-            let p = u.join(&f).unwrap().as_str().to_owned();
-            list.push_str(format!("=> {} {}\r\n", p, f).as_str());
+            let m = file.metadata()?;
+            let file = file.path();
+            let p = file.strip_prefix(&path).unwrap();
+            if m.is_dir() {
+                list.push_str(&format!("=> {}/ {}/\r\n", p.display(), p.display()));
+            } else {
+                list.push_str(&format!("=> {} {}\r\n", p.display(), p.display()));
+            }
         }
     }
     return Ok(list);
@@ -123,7 +128,6 @@ async fn handle_connection(mut con: conn::Connection) -> Result<(), io::Error> {
         return Ok(());
     }
 
-    // add error
     let meta = fs::metadata(&path).expect("Unable to read metadata");
 
     if meta.is_dir() {
@@ -213,6 +217,7 @@ fn main() -> io::Result<()> {
                         if server.cgi.is_some() {
                             cgi = server.cgi.as_ref().unwrap().to_string();
                         }
+                        break;
                     }
                 }
 
