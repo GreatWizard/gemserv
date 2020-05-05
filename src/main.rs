@@ -101,15 +101,27 @@ fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
 async fn handle_connection(mut con: conn::Connection) -> Result<(), io::Error> {
     let now: DateTime<Utc> = Utc::now();
     println!("{} New Connection: {}", now, con.peer_addr);
-    let mut buffer = [0; 512];
+    let mut buffer = [0; 1024];
     con.stream.read(&mut buffer).await?;
-    let request = String::from_utf8_lossy(&buffer[..]).to_owned();
+    let request = match String::from_utf8(buffer[..].to_vec()) {
+        Ok(request) => request,
+        Err(_) => {
+            println!("Bad Request");
+            con.send_status(status::Status::BadRequest, "Bad Request!\r\n").await?;
+            return Ok(())
+        }
+    };
     println!("Request: {}", request);
 
-    let url = Url::parse(&request).unwrap();
+    let url = match Url::parse(&request) {
+        Ok(url) => url,
+        Err(_) => { con.send_status(status::Status::BadRequest, "Bad Request!\r\n").await?;
+                return Ok(())
+        }
+    };
 
     if Some(con.hostname.as_str()) != url.host_str() {
-        con.send_status(status::Status::PermanentFailure, "Url doesn't match certificate!").await?;
+        con.send_status(status::Status::ProxyRequestRefused, "Url doesn't match certificate!").await?;
         return Ok(());
     }
 
