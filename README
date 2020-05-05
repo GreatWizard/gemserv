@@ -1,3 +1,29 @@
-Gemserv is a gemini server written in rust. It supports vhosts and cgi. To run
-use "cargo run /path/to/config" 
+# Gemserv
 
+A gemini server written in rust.
+
+## Features
+
+ - Vhosts
+ - CGI
+ - User directories
+
+## Installation and running
+
+ - Clone the repo
+ - Run 'cargo build --release'
+ - Modify the config.toml to your needs
+ - Run './target/release/gemserv config.toml'
+
+## Create server key/cert pairs
+
+
+## CGI
+ - GEMINI_URL
+ - SERVER_NAME
+ - SERVER_PROTOCOL
+ - SCRIPT_NAME
+ - REMOTE_ADDR
+ - REMOTE_HOST
+ - REMOTE_PORT
+ - QUERY_STRING

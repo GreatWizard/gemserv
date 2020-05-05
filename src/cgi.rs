@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::io::{self, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::os::unix::fs::PermissionsExt;
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use url::Url;

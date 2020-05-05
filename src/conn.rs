@@ -12,6 +12,7 @@ pub struct Connection {
     pub hostname: String,
     pub dir: String,
     pub cgi: String,
+    pub usrdir: bool,
 }
 
 impl Connection {

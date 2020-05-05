@@ -19,6 +19,7 @@ pub struct Server {
     pub key: String,
     pub cert: String,
     pub cgi: Option<String>,
+    pub usrdir: Option<bool>,
 }
 
 impl Config {
@@ -35,7 +36,8 @@ impl Config {
                 dir: srv.dir.clone(),
                 key: srv.key.clone(),
                 cert: srv.cert.clone(),
-                cgi: srv.cgi.clone()
+                cgi: srv.cgi.clone(),
+                usrdir: srv.usrdir.clone(),
             });
         }
         map

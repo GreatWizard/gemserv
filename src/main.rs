@@ -82,6 +82,10 @@ fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
     for file in fs::read_dir(&path)? {
         if let Ok(file) = file {
             let m = file.metadata()?;
+            let perm = m.permissions();
+            if perm.mode() & 0o0444 != 0o0444 {
+                continue
+            }
             let file = file.path();
             let p = file.strip_prefix(&path).unwrap();
             if m.is_dir() {
@@ -118,9 +122,23 @@ async fn handle_connection(mut con: conn::Connection) -> Result<(), io::Error> {
         return Ok(());
     }
 
-    let mut path = PathBuf::from(&con.dir);
-    if url.path() != "" || url.path() != "/" {
-        path.push(url.path().trim_start_matches("/"));
+    let mut path = PathBuf::new();
+
+    if url.path().starts_with("/~") && con.usrdir == true{
+        let usr = url.path().trim_start_matches("/~");
+        let usr: Vec<&str> = usr.splitn(2, "/").collect();
+        path.push("/home/");
+        if usr.len() == 2 {
+            path.push(format!("{}/{}/{}", usr[0], "public_gemini", usr[1]));
+        } else {
+            path.push(format!("{}/{}/",usr[0], "public_gemini"));
+        }
+    } else {
+        path.push(&con.dir);
+        if url.path() != "" || url.path() != "/" {
+            path.push(url.path().trim_start_matches("/"));
+        }
+
     }
 
     if !path.exists() {
@@ -128,7 +146,8 @@ async fn handle_connection(mut con: conn::Connection) -> Result<(), io::Error> {
         return Ok(());
     }
 
-    let meta = fs::metadata(&path).expect("Unable to read metadata");
+    let mut meta = fs::metadata(&path).expect("Unable to read metadata");
+    let mut perm = meta.permissions();
 
     if meta.is_dir() {
         if !url.path().ends_with("/") {
@@ -141,12 +160,26 @@ async fn handle_connection(mut con: conn::Connection) -> Result<(), io::Error> {
         }
         if path.join("index.gemini").exists() {
             path.push("index.gemini");
+            meta = fs::metadata(&path).expect("Unable to read metadata");
+            perm = meta.permissions();
         }
     }
 
     // add timeout
     if con.cgi.trim_end_matches("/") == path.parent().unwrap().to_str().unwrap() {
+        if perm.mode() & 0o0111 == 0o0111 {
         cgi::cgi(con, path, url).await?;
+        return Ok(());
+        } else {
+            con.send_status(
+                status::Status::CGIError, "CGI Error!\r\n").await?;
+            return Ok(());
+        }
+    }
+
+    if perm.mode() & 0o0444 != 0o0444 {
+        con.send_status(
+            status::Status::NotFound, "Not Found!\r\n").await?;
         return Ok(());
     }
 
@@ -209,6 +242,7 @@ fn main() -> io::Result<()> {
                 let mut dir = String::new();
                 let mut cgi = String::new();
                 let mut hostname = String::new();
+                let mut usrdir: bool = false;
 
                 for server in &cfg.server {
                     if Some(server.hostname.as_str()) == sni {
@@ -216,6 +250,9 @@ fn main() -> io::Result<()> {
                         dir = server.dir.to_string();
                         if server.cgi.is_some() {
                             cgi = server.cgi.as_ref().unwrap().to_string();
+                        }
+                        if server.usrdir.is_some() {
+                            usrdir = server.usrdir.unwrap();
                         }
                         break;
                     }
@@ -227,6 +264,7 @@ fn main() -> io::Result<()> {
                     hostname,
                     dir,
                     cgi,
+                    usrdir,
                 };
                 handle_connection(con).await?;
 

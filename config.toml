@@ -9,6 +9,8 @@ key = "/path/to/key"
 cert = "/path/to/cert"
 # cgi dir is optional
 cgi = "/path/to/cgi-bin/"
+# usrdir is optional. it'll look in /home/~usr/public_gemini
+usrdir = true
 
 [[server]]
 hostname = "example.net"
