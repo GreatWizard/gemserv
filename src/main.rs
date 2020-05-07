@@ -98,7 +98,8 @@ fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
     return Ok(list);
 }
 
-async fn handle_connection(mut con: conn::Connection) -> Result<(), io::Error> {
+// TODO Rewrite this monster. 
+async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -> Result<(), io::Error> {
     let now: DateTime<Utc> = Utc::now();
     println!("{} New Connection: {}", now, con.peer_addr);
     let mut buffer = [0; 1024];
@@ -123,7 +124,7 @@ async fn handle_connection(mut con: conn::Connection) -> Result<(), io::Error> {
         }
     };
 
-    if Some(con.hostname.as_str()) != url.host_str() {
+    if Some(srv.hostname.as_str()) != url.host_str() {
         con.send_status(status::Status::ProxyRequestRefused, "Url doesn't match certificate!").await?;
         return Ok(());
     }
@@ -146,7 +147,7 @@ async fn handle_connection(mut con: conn::Connection) -> Result<(), io::Error> {
 
     let mut path = PathBuf::new();
 
-    if url.path().starts_with("/~") && con.usrdir == true{
+    if url.path().starts_with("/~") && srv.usrdir == true{
         let usr = url.path().trim_start_matches("/~");
         let usr: Vec<&str> = usr.splitn(2, "/").collect();
         path.push("/home/");
@@ -156,7 +157,7 @@ async fn handle_connection(mut con: conn::Connection) -> Result<(), io::Error> {
             path.push(format!("{}/{}/",usr[0], "public_gemini"));
         }
     } else {
-        path.push(&con.dir);
+        path.push(&srv.dir);
         if url.path() != "" || url.path() != "/" {
             path.push(url.path().trim_start_matches("/"));
         }
@@ -171,6 +172,8 @@ async fn handle_connection(mut con: conn::Connection) -> Result<(), io::Error> {
     let mut meta = fs::metadata(&path).expect("Unable to read metadata");
     let mut perm = meta.permissions();
 
+    // TODO fix me
+    // This block is terrible
     if meta.is_dir() {
         if !url.path().ends_with("/") {
             con.send_status(
@@ -184,11 +187,18 @@ async fn handle_connection(mut con: conn::Connection) -> Result<(), io::Error> {
             path.push("index.gemini");
             meta = fs::metadata(&path).expect("Unable to read metadata");
             perm = meta.permissions();
+            if perm.mode() & 0o0444 != 0o444 {
+                let mut p = path.clone();
+                p.pop();
+                path.push(format!("{}/",p.display()));
+                meta = fs::metadata(&path).expect("Unable to read metadata");
+                perm = meta.permissions();
+            }
         }
     }
 
-    // add timeout
-    if con.cgi.trim_end_matches("/") == path.parent().unwrap().to_str().unwrap() {
+    // TODO add timeout
+    if srv.cgi.trim_end_matches("/") == path.parent().unwrap().to_str().unwrap() {
         if perm.mode() & 0o0111 == 0o0111 {
         cgi::cgi(con, path, url).await?;
         return Ok(());
@@ -233,6 +243,7 @@ fn main() -> io::Result<()> {
         return Ok(());
     }
     let cfg = config::Config::new(&p)?;
+    let cmap = cfg.to_map();
     println!("Serving {} vhosts", cfg.server.len());
 
     let addr = format!("{}:{}", cfg.host, cfg.port);
@@ -255,40 +266,31 @@ fn main() -> io::Result<()> {
         loop {
             let (stream, peer_addr) = listener.accept().await?;
             let acceptor = acceptor.clone();
-            let cfg = cfg.clone();
+            let cmap = cmap.clone();
 
             let fut = async move {
                 let mut stream = acceptor.accept(stream).await?;
                 let (_, sni) = TlsStream::get_mut(&mut stream);
-                let sni = sni.get_sni_hostname();
-                let mut dir = String::new();
-                let mut cgi = String::new();
-                let mut hostname = String::new();
-                let mut usrdir: bool = false;
-
-                for server in &cfg.server {
-                    if Some(server.hostname.as_str()) == sni {
-                        hostname = sni.unwrap().to_string();
-                        dir = server.dir.to_string();
-                        if server.cgi.is_some() {
-                            cgi = server.cgi.as_ref().unwrap().to_string();
-                        }
-                        if server.usrdir.is_some() {
-                            usrdir = server.usrdir.unwrap();
-                        }
-                        break;
-                    }
-                }
-
+                let sni = match sni.get_sni_hostname() {
+                    Some(s) => s,
+                    None => return Ok(()),
+                };
+                
+                let srv = match cmap.get(sni) {
+                    Some(h) => h,
+                    None => {
+                        // I'm not sure this will actually get called?
+                        stream.write_all(b"59\tNotFound!\r\n").await?;
+                        stream.flush().await?;
+                        return Ok(());
+                    },
+                };
+                
                 let con = conn::Connection {
                     stream,
                     peer_addr,
-                    hostname,
-                    dir,
-                    cgi,
-                    usrdir,
                 };
-                handle_connection(con).await?;
+                handle_connection(con, srv).await?;
 
                 Ok(()) as io::Result<()>
             };

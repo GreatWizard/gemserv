@@ -9,10 +9,6 @@ use crate::status;
 pub struct Connection {
     pub stream: TlsStream<TcpStream>,
     pub peer_addr: SocketAddr,
-    pub hostname: String,
-    pub dir: String,
-    pub cgi: String,
-    pub usrdir: bool,
 }
 
 impl Connection {
