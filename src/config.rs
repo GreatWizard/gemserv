@@ -7,7 +7,7 @@ use std::path::Path;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
-    pub port: i32,
+    pub port: u16,
     pub host: String,
     pub server: Vec<Server>,
 }
@@ -30,7 +30,7 @@ pub struct ServerCfg {
     pub cert: String,
     pub cgi: String,
     pub usrdir: bool,
-    pub port: i32,
+    pub port: u16,
 }
 
 impl Config {

@@ -128,9 +128,9 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
         con.send_status(status::Status::ProxyRequestRefused, "Url doesn't match certificate!").await?;
         return Ok(());
     }
-    // TODO get port from config
+
     match url.port() {
-        Some(p) => { if p != 1965 {
+        Some(p) => { if p != srv.port {
             con.send_status(status::Status::ProxyRequestRefused, "Wrong Port!").await?;
         }},
         None => {}
