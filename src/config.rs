@@ -20,6 +20,7 @@ pub struct Server {
     pub cert: String,
     pub cgi: Option<String>,
     pub usrdir: Option<bool>,
+    pub proxy: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -31,6 +32,7 @@ pub struct ServerCfg {
     pub cgi: String,
     pub usrdir: bool,
     pub port: i32,
+    pub proxy: HashMap<String, String>,
 }
 
 impl Config {
@@ -50,6 +52,16 @@ impl Config {
                 Some(u) => u,
                 None => false,
             };
+            let mut pmap = HashMap::new();
+            match &srv.proxy {
+                Some(pr) => {
+                    for p in pr {
+                        let p: Vec<&str> = p.split("=").collect();
+                        pmap.insert(p[0].trim().to_string(), p[1].trim().to_string());
+                    }
+                },
+                None => {},
+            };
             map.insert(srv.hostname.clone(), ServerCfg { 
                 hostname: srv.hostname.clone(),
                 dir: srv.dir.clone(),
@@ -58,6 +70,7 @@ impl Config {
                 cgi: cgi,
                 usrdir: usrdir,
                 port: self.port.clone(),
+                proxy: pmap,
             });
         }
         map

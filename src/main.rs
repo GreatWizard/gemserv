@@ -36,6 +36,7 @@ mod config;
 mod status;
 mod tls;
 mod conn;
+mod revproxy;
 
 fn get_mime(path: &PathBuf) -> String {
     let mut mime = "text/gemini";
@@ -123,6 +124,16 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
                 return Ok(())
         }
     };
+
+    if srv.proxy.len() != 0 {
+        match srv.proxy.get(url.path()) {
+            Some(p) => {
+                revproxy::proxy(p.to_string(), url).await?;
+                return Ok(());
+            },
+            None => {},
+        }
+    }
 
     if Some(srv.hostname.as_str()) != url.host_str() {
         con.send_status(status::Status::ProxyRequestRefused, "Url doesn't match certificate!").await?;
