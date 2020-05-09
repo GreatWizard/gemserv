@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::os::unix::fs::PermissionsExt;
 use tokio::net::TcpStream;
-use tokio_rustls::server::TlsStream;
+use tokio_openssl::SslStream;
 use url::Url;
 
 use crate::config;

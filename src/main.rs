@@ -22,10 +22,8 @@ use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::prelude::*;
 use tokio::runtime;
-use tokio_rustls::rustls::internal::pemfile::{certs, pkcs8_private_keys};
-use tokio_rustls::rustls::{Certificate, NoClientAuth, PrivateKey, ServerConfig};
-use tokio_rustls::server::TlsStream;
-use tokio_rustls::TlsAcceptor;
+use tokio_openssl::SslStream;
+use openssl::ssl::NameType;
 use url::Url;
 use chrono::{DateTime, Utc};
 use mime_guess;
@@ -257,9 +255,8 @@ fn main() -> io::Result<()> {
         .build()?;
 
     let handle = runtime.handle().clone();
-    let config = tls::get_tls_config(cfg.clone());
 
-    let acceptor = TlsAcceptor::from(Arc::new(config));
+    let acceptor = tls::acceptor_conf(cfg.clone())?;
 
     let fut = async {
         let mut listener = TcpListener::bind(&addr).await?;
@@ -269,13 +266,12 @@ fn main() -> io::Result<()> {
             let cmap = cmap.clone();
 
             let fut = async move {
-                let mut stream = acceptor.accept(stream).await?;
-                let (_, sni) = TlsStream::get_mut(&mut stream);
-                let sni = match sni.get_sni_hostname() {
+                let mut stream = tokio_openssl::accept(&acceptor, stream).await.expect("Couldn't accept");
+                let sni = match stream.ssl().servername(NameType::HOST_NAME) {
                     Some(s) => s,
                     None => return Ok(()),
                 };
-                
+
                 let srv = match cmap.get(sni) {
                     Some(h) => h,
                     None => {

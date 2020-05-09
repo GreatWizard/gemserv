@@ -2,12 +2,12 @@ use std::io;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::prelude::*;
-use tokio_rustls::server::TlsStream;
+use tokio_openssl::SslStream;
 
 use crate::status;
 
 pub struct Connection {
-    pub stream: TlsStream<TcpStream>,
+    pub stream: SslStream<TcpStream>,
     pub peer_addr: SocketAddr,
 }
 
