@@ -124,9 +124,13 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
     };
 
     if srv.proxy.len() != 0 {
-        match srv.proxy.get(url.path()) {
+        let seg = match url.path_segments().map(|c| c.collect::<Vec<_>>()) {
+            Some(s) => s,
+            None => return Ok(()),
+        };
+        match srv.proxy.get(seg[0]) {
             Some(p) => {
-                revproxy::proxy(p.to_string(), url).await?;
+                revproxy::proxy(p.to_string(), url, con).await?;
                 return Ok(());
             },
             None => {},
