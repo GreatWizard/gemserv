@@ -7,6 +7,7 @@ A gemini server written in rust.
  - Vhosts
  - CGI
  - User directories
+ - Reverse proxy
 
 ## Installation and running
 

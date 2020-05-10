@@ -11,6 +11,9 @@ cert = "/path/to/cert"
 cgi = "/path/to/cgi-bin/"
 # usrdir is optional. it'll look in /home/~usr/public_gemini
 usrdir = true
+# proxy is optional
+# path is what comes after the hostname e.g. example.com/path
+proxy { path = "localhost:1966" }
 
 [[server]]
 hostname = "example.net"
