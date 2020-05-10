@@ -8,9 +8,9 @@ edition = "2018"
 
 [dependencies]
 tokio = { version = "0.2", features = [ "net", "io-util", "rt-threaded" ] }
-tokio-rustls = "*"
-rustls = "*"
-futures-util = "*"
+openssl = "0.10"
+tokio-openssl = "0.4"
+futures-util = "0.3"
 toml = "*"
 serde = "*"
 serde_derive = "*"
