@@ -123,20 +123,6 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
         }
     };
 
-    if srv.proxy.len() != 0 {
-        let seg = match url.path_segments().map(|c| c.collect::<Vec<_>>()) {
-            Some(s) => s,
-            None => return Ok(()),
-        };
-        match srv.proxy.get(seg[0]) {
-            Some(p) => {
-                revproxy::proxy(p.to_string(), url, con).await?;
-                return Ok(());
-            },
-            None => {},
-        }
-    }
-
     if Some(srv.hostname.as_str()) != url.host_str() {
         con.send_status(status::Status::ProxyRequestRefused, "Url doesn't match certificate!").await?;
         return Ok(());
@@ -156,6 +142,21 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
         )
         .await?;
         return Ok(());
+    }
+
+    if srv.proxy.len() != 0 {
+        match url.path_segments().map(|c| c.collect::<Vec<_>>()) {
+            Some(s) => {
+                match srv.proxy.get(s[0]) {
+                    Some(p) => {
+                        revproxy::proxy(p.to_string(), url, con).await?;
+                        return Ok(());
+                    },
+                    None => {},
+                }
+            }
+            None => {},
+        }    
     }
 
     let mut path = PathBuf::new();
@@ -189,6 +190,7 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
     // This block is terrible
     if meta.is_dir() {
         if !url.path().ends_with("/") {
+            println!("{}", url);
             con.send_status(
                 status::Status::RedirectPermanent,
                 format!("{}/", url).as_str(),
