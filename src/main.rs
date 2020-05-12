@@ -54,7 +54,7 @@ fn get_mime(path: &PathBuf) -> String {
 async fn get_binary(mut con: conn::Connection, path:PathBuf, meta: String) -> io::Result<()> {
     let fd = File::open(path)?;
     let mut reader = BufReader::with_capacity(1024*1024,fd);
-    con.send_status(status::Status::Success, &meta).await?;
+    con.send_status(status::Status::Success, Some(&meta)).await?;
     loop {
         let len = {
             let buf = reader.fill_buf()?;
@@ -107,7 +107,7 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
         Ok(request) => request,
         Err(_) => {
             println!("Bad Request");
-            con.send_status(status::Status::BadRequest, "Bad Request!").await?;
+            con.send_status(status::Status::BadRequest, None).await?;
             return Ok(())
         }
     };
@@ -118,19 +118,19 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
 
     let url = match Url::parse(&request) {
         Ok(url) => url,
-        Err(_) => { con.send_status(status::Status::BadRequest, "Bad Request!").await?;
+        Err(_) => { con.send_status(status::Status::BadRequest, None).await?;
                 return Ok(())
         }
     };
 
     if Some(srv.hostname.as_str()) != url.host_str() {
-        con.send_status(status::Status::ProxyRequestRefused, "Url doesn't match certificate!").await?;
+        con.send_status(status::Status::ProxyRequestRefused, None).await?;
         return Ok(());
     }
 
     match url.port() {
         Some(p) => { if p != srv.port {
-            con.send_status(status::Status::ProxyRequestRefused, "Wrong Port!").await?;
+            con.send_status(status::Status::ProxyRequestRefused, None).await?;
         }},
         None => {}
     }
@@ -138,7 +138,7 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
     if url.scheme() != "gemini" {
         con.send_status(
             status::Status::ProxyRequestRefused,
-            "Not a gemini scheme!",
+            None,
         )
         .await?;
         return Ok(());
@@ -179,7 +179,7 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
     }
 
     if !path.exists() {
-        con.send_status(status::Status::NotFound, "Not found!").await?;
+        con.send_status(status::Status::NotFound, None).await?;
         return Ok(());
     }
 
@@ -193,7 +193,7 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
             println!("{}", url);
             con.send_status(
                 status::Status::RedirectPermanent,
-                format!("{}/", url).as_str(),
+                Some(format!("{}/", url).as_str()),
             )
             .await?;
             return Ok(());
@@ -219,14 +219,14 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
         return Ok(());
         } else {
             con.send_status(
-                status::Status::CGIError, "CGI Error!").await?;
+                status::Status::CGIError, None).await?;
             return Ok(());
         }
     }
 
     if perm.mode() & 0o0444 != 0o0444 {
         con.send_status(
-            status::Status::NotFound, "Not Found!").await?;
+            status::Status::NotFound, None).await?;
         return Ok(());
     }
 
@@ -238,7 +238,7 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
     let content = get_content(path, url)?;
     con.send_body(
         status::Status::Success,
-        mime.as_str(),
+        Some(mime.as_str()),
         Some(content),
     )
     .await?;

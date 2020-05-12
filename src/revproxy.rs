@@ -16,11 +16,11 @@ use crate::status;
 pub async fn proxy(addr: String, u: url::Url, mut con: conn::Connection) -> Result<(), io::Error> {
     let p: Vec<&str> = u.path().trim_start_matches("/").splitn(2, "/").collect();
     if p.len() == 1 {
-        con.send_status(status::Status::NotFound, "Not Found").await?;
+        con.send_status(status::Status::NotFound, None).await?;
         return Ok(());
     }
     if p[1] == "" || p[1] == "/" {
-        con.send_status(status::Status::NotFound, "Not Found").await?;
+        con.send_status(status::Status::NotFound, None).await?;
         return Ok(())
     }
     let addr = addr
@@ -36,7 +36,7 @@ pub async fn proxy(addr: String, u: url::Url, mut con: conn::Connection) -> Resu
         Ok(s) => s,
         Err(_) => {
             eprintln!("Error connecting to proxy");
-            con.send_status(status::Status::ProxyError, "Error Connecting to proxy").await?;
+            con.send_status(status::Status::ProxyError, None).await?;
             return Ok(())
         },
     };
@@ -44,7 +44,7 @@ pub async fn proxy(addr: String, u: url::Url, mut con: conn::Connection) -> Resu
         Ok(s) => s,
         Err(_) => {
             eprintln!("Error connecting to proxy");
-            con.send_status(status::Status::ProxyError, "Error Connecting to proxy").await?;
+            con.send_status(status::Status::ProxyError, None).await?;
             return Ok(())
         },
     };

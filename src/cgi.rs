@@ -33,7 +33,7 @@ pub async fn cgi(mut con: conn::Connection, path: PathBuf, url: Url) -> Result<(
         .output()
         .unwrap();
     if !cmd.status.success() {
-        con.send_status(status::Status::CGIError, "CGI Error!").await?;
+        con.send_status(status::Status::CGIError, None).await?;
         return Ok(());
     }
     let cmd = String::from_utf8(cmd.stdout).unwrap();
