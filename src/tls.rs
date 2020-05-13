@@ -1,18 +1,13 @@
 extern crate openssl;
 extern crate tokio_openssl;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{self, BufReader};
-use std::sync::Arc;
 
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
-use openssl::ssl::SslAcceptorBuilder;
 use openssl::ssl::SniError;
 use openssl::error::ErrorStack;
 use openssl::ssl::SslContextBuilder;
 use openssl::ssl::SslVersion;
 use openssl::ssl::NameType;
-use tokio_openssl::SslStream;
 
 use crate::config;
 

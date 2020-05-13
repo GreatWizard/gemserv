@@ -1,6 +1,5 @@
 use std::net::SocketAddr;
 use log::{info, warn};
-use crate::conn;
 use crate::status;
 
 pub fn logger(addr: SocketAddr, stat: status::Status, req: &str) {

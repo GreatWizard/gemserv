@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[allow(dead_code)]
 #[repr(u8)]
 #[derive(Debug, Copy, Clone)]
 pub enum Status {

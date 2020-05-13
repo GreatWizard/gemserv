@@ -1,14 +1,8 @@
-use futures_util::future;
-use std::fs::File;
 use std::io;
-use std::io::Read;
-use std::io::BufReader;
 use std::net::ToSocketAddrs;
-use std::sync::Arc;
-use tokio::io::{copy, split, AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use openssl::ssl::{SslConnector, SslMethod};
-use url::Url;
 
 use crate::conn;
 use crate::status::Status;

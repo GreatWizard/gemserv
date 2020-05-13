@@ -2,7 +2,6 @@ extern crate serde_derive;
 extern crate toml;
 use std::collections::HashMap;
 use toml::de::Error;
-use std::io;
 use std::path::Path;
 
 #[derive(Debug, Deserialize, Clone)]

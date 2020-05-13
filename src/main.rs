@@ -1,34 +1,22 @@
-#![allow(unused_imports)]
-#![allow(dead_code)]
 #[macro_use]
 extern crate serde_derive;
 
 use futures_util::future::TryFutureExt;
-use std::collections::HashMap;
-use std::error::Error;
 use std::fs;
 use std::fs::File;
 use std::io::{self, BufReader, BufRead};
-use std::io::prelude::*;
-use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::Arc;
 use std::env;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
-use tokio::net::TcpStream;
 use tokio::prelude::*;
 use tokio::runtime;
-use tokio_openssl::SslStream;
 use openssl::ssl::NameType;
 use url::Url;
-use chrono::{DateTime, Utc};
 use mime_guess;
 use mime;
-use log::{info, warn};
 
 mod cgi;
 mod config;

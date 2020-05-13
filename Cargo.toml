@@ -1,6 +1,6 @@
 [package]
 name = "gemserv"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["int 80h <int@80h.dev>"]
 edition = "2018"
 
@@ -11,11 +11,10 @@ tokio = { version = "0.2", features = [ "net", "io-util", "rt-threaded" ] }
 openssl = "0.10"
 tokio-openssl = "0.4"
 futures-util = "0.3"
-toml = "*"
-serde = "*"
-serde_derive = "*"
-url = "*"
-chrono = "0.4"
+toml = "0.5"
+serde = "1"
+serde_derive = "1"
+url = "2"
 mime_guess = "2.0.3"
 mime = "0.3.16"
 log = "0.4"

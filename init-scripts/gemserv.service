@@ -1,0 +1,14 @@
+[Unit]
+Description=gemserv
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+User=gemini
+ExecStart=/path/to/bin /path/to/config
+
+[Install]
+WantedBy=multi-user.target
+

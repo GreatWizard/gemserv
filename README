@@ -23,6 +23,7 @@ A gemini server written in rust.
  - GEMINI_URL
  - SERVER_NAME
  - SERVER_PROTOCOL
+ - SERVER_SOFTWARE
  - SCRIPT_NAME
  - REMOTE_ADDR
  - REMOTE_HOST
