@@ -18,6 +18,8 @@ url = "*"
 chrono = "0.4"
 mime_guess = "2.0.3"
 mime = "0.3.16"
+log = "0.4"
+simple_logger = "1"
 
 [workspace]
 members = [ "cgi-scripts/agena-cgi" ]

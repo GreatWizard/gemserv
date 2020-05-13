@@ -11,16 +11,19 @@ use openssl::ssl::{SslConnector, SslMethod};
 use url::Url;
 
 use crate::conn;
-use crate::status;
+use crate::status::Status;
+use crate::logger;
 
 pub async fn proxy(addr: String, u: url::Url, mut con: conn::Connection) -> Result<(), io::Error> {
     let p: Vec<&str> = u.path().trim_start_matches("/").splitn(2, "/").collect();
     if p.len() == 1 {
-        con.send_status(status::Status::NotFound, None).await?;
+        logger::logger(con.peer_addr, Status::NotFound, u.as_str());
+        con.send_status(Status::NotFound, None).await?;
         return Ok(());
     }
     if p[1] == "" || p[1] == "/" {
-        con.send_status(status::Status::NotFound, None).await?;
+        logger::logger(con.peer_addr, Status::NotFound, u.as_str());
+        con.send_status(Status::NotFound, None).await?;
         return Ok(())
     }
     let addr = addr
@@ -35,16 +38,16 @@ pub async fn proxy(addr: String, u: url::Url, mut con: conn::Connection) -> Resu
     let stream = match TcpStream::connect(&addr).await {
         Ok(s) => s,
         Err(_) => {
-            eprintln!("Error connecting to proxy");
-            con.send_status(status::Status::ProxyError, None).await?;
+            logger::logger(con.peer_addr, Status::ProxyError, u.as_str());
+            con.send_status(Status::ProxyError, None).await?;
             return Ok(())
         },
     };
     let mut stream = match tokio_openssl::connect(config, "localhost", stream).await {
         Ok(s) => s,
         Err(_) => {
-            eprintln!("Error connecting to proxy");
-            con.send_status(status::Status::ProxyError, None).await?;
+            logger::logger(con.peer_addr, Status::ProxyError, u.as_str());
+            con.send_status(Status::ProxyError, None).await?;
             return Ok(())
         },
     };

@@ -8,8 +8,9 @@ use tokio_openssl::SslStream;
 use url::Url;
 
 use crate::config;
-use crate::status;
+use crate::status::Status;
 use crate::conn;
+use crate::logger;
 
 pub async fn cgi(mut con: conn::Connection, path: PathBuf, url: Url) -> Result<(), io::Error> {
     let mut envs = HashMap::new();
@@ -33,10 +34,12 @@ pub async fn cgi(mut con: conn::Connection, path: PathBuf, url: Url) -> Result<(
         .output()
         .unwrap();
     if !cmd.status.success() {
-        con.send_status(status::Status::CGIError, None).await?;
+        logger::logger(con.peer_addr, Status::CGIError, url.as_str());
+        con.send_status(Status::CGIError, None).await?;
         return Ok(());
     }
     let cmd = String::from_utf8(cmd.stdout).unwrap();
+    logger::logger(con.peer_addr, Status::Success, url.as_str());
     con.send_raw(cmd.as_bytes()).await?;
     return Ok(());
 }

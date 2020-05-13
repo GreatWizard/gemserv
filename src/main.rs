@@ -28,13 +28,16 @@ use url::Url;
 use chrono::{DateTime, Utc};
 use mime_guess;
 use mime;
+use log::{info, warn};
 
 mod cgi;
 mod config;
 mod status;
+use status::Status;
 mod tls;
 mod conn;
 mod revproxy;
+mod logger;
 
 fn get_mime(path: &PathBuf) -> String {
     let mut mime = "text/gemini";
@@ -97,49 +100,49 @@ fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
     return Ok(list);
 }
 
+
 // TODO Rewrite this monster. 
 async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -> Result<(), io::Error> {
-    let now: DateTime<Utc> = Utc::now();
-    println!("{} New Connection: {}", now, con.peer_addr);
     let mut buffer = [0; 1024];
     con.stream.read(&mut buffer).await?;
     let mut request = match String::from_utf8(buffer[..].to_vec()) {
         Ok(request) => request,
         Err(_) => {
-            println!("Bad Request");
-            con.send_status(status::Status::BadRequest, None).await?;
+            logger::logger(con.peer_addr, Status::BadRequest, "");
+            con.send_status(Status::BadRequest, None).await?;
             return Ok(())
         }
     };
     if request.starts_with("//") {
         request = request.replacen("//", "gemini://", 1);
     }
-    println!("Request: {}", request);
 
     let url = match Url::parse(&request) {
         Ok(url) => url,
-        Err(_) => { con.send_status(status::Status::BadRequest, None).await?;
-                return Ok(())
+        Err(_) => {
+            logger::logger(con.peer_addr, Status::BadRequest, &request);
+            con.send_status(Status::BadRequest, None).await?;
+            return Ok(())
         }
     };
 
     if Some(srv.hostname.as_str()) != url.host_str() {
-        con.send_status(status::Status::ProxyRequestRefused, None).await?;
+        logger::logger(con.peer_addr, Status::ProxyRequestRefused, &request);
+        con.send_status(Status::ProxyRequestRefused, None).await?;
         return Ok(());
     }
 
     match url.port() {
         Some(p) => { if p != srv.port {
+            logger::logger(con.peer_addr, Status::ProxyRequestRefused, &request);
             con.send_status(status::Status::ProxyRequestRefused, None).await?;
         }},
         None => {}
     }
 
     if url.scheme() != "gemini" {
-        con.send_status(
-            status::Status::ProxyRequestRefused,
-            None,
-        )
+        logger::logger(con.peer_addr, Status::ProxyRequestRefused, &request);
+        con.send_status(Status::ProxyRequestRefused, None)
         .await?;
         return Ok(());
     }
@@ -179,7 +182,8 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
     }
 
     if !path.exists() {
-        con.send_status(status::Status::NotFound, None).await?;
+        logger::logger(con.peer_addr, Status::NotFound, &request);
+        con.send_status(Status::NotFound, None).await?;
         return Ok(());
     }
 
@@ -190,9 +194,9 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
     // This block is terrible
     if meta.is_dir() {
         if !url.path().ends_with("/") {
-            println!("{}", url);
+            logger::logger(con.peer_addr, Status::RedirectPermanent, &request);
             con.send_status(
-                status::Status::RedirectPermanent,
+                Status::RedirectPermanent,
                 Some(format!("{}/", url).as_str()),
             )
             .await?;
@@ -218,20 +222,21 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
         cgi::cgi(con, path, url).await?;
         return Ok(());
         } else {
-            con.send_status(
-                status::Status::CGIError, None).await?;
+            logger::logger(con.peer_addr, Status::CGIError, &request);
+            con.send_status(Status::CGIError, None).await?;
             return Ok(());
         }
     }
 
     if perm.mode() & 0o0444 != 0o0444 {
-        con.send_status(
-            status::Status::NotFound, None).await?;
+        logger::logger(con.peer_addr, Status::NotFound, &request);
+        con.send_status(Status::NotFound, None).await?;
         return Ok(());
     }
 
     let mime = get_mime(&path);
     if !mime.starts_with("text/") {
+        logger::logger(con.peer_addr, Status::Success, &request);
         get_binary(con, path, mime).await?;
         return Ok(());
     }
@@ -242,11 +247,13 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
         Some(content),
     )
     .await?;
+    logger::logger(con.peer_addr, Status::Success, &request);
 
     Ok(())
 }
 
 fn main() -> io::Result<()> {
+    simple_logger::init_with_level(log::Level::Info).unwrap();
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         println!("Please run with the path to the config file.");
@@ -257,6 +264,7 @@ fn main() -> io::Result<()> {
         println!("Config file doesn't exist");
         return Ok(());
     }
+
     let cfg = config::Config::new(&p)?;
     let cmap = cfg.to_map();
     println!("Serving {} vhosts", cfg.server.len());
