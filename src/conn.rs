@@ -27,11 +27,10 @@ impl Connection {
             Some(m) => m,
             None => &stat.to_str(),
         };
-        let mut s = format!("{}\t{}\r\n", stat as u8, meta);
+        self.send_raw(format!("{}\t{}\r\n", stat as u8, meta).as_bytes()).await?;
         if let Some(b) = body {
-            s += &b;
+            self.send_raw(b.as_bytes()).await?;
         }
-        self.send_raw(s.as_bytes()).await?;
         Ok(())
     }
 
