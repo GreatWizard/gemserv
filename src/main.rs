@@ -12,7 +12,6 @@ use std::io::{self, BufRead, BufReader};
 use std::net::ToSocketAddrs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 use tokio::runtime;
@@ -264,6 +263,7 @@ fn main() -> io::Result<()> {
 
     let cfg = config::Config::new(&p)?;
     let cmap = cfg.to_map();
+    let default = &cfg.server[0].hostname;
     println!("Serving {} vhosts", cfg.server.len());
 
     let addr = format!("{}:{}", cfg.host, cfg.port);
@@ -286,24 +286,21 @@ fn main() -> io::Result<()> {
             let (stream, peer_addr) = listener.accept().await?;
             let acceptor = acceptor.clone();
             let cmap = cmap.clone();
+            let default = default.clone();
 
             let fut = async move {
-                let mut stream = tokio_openssl::accept(&acceptor, stream)
+                let stream = tokio_openssl::accept(&acceptor, stream)
                     .await
                     .expect("Couldn't accept");
-                let sni = match stream.ssl().servername(NameType::HOST_NAME) {
-                    Some(s) => s,
-                    None => return Ok(()),
-                };
 
-                let srv = match cmap.get(sni) {
-                    Some(h) => h,
-                    None => {
-                        // I'm not sure this will actually get called?
-                        stream.write_all(b"59\tNotFound!\r\n").await?;
-                        stream.flush().await?;
-                        return Ok(());
-                    }
+                let srv = match stream.ssl().servername(NameType::HOST_NAME) {
+                    Some(s) => {
+                        match cmap.get(s) {
+                            Some(ss) => ss,
+                            None => cmap.get(&default).unwrap(),
+                        }
+                    },
+                    None => cmap.get(&default).unwrap(),
                 };
 
                 let con = conn::Connection { stream, peer_addr };

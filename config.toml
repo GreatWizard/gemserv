@@ -2,7 +2,8 @@ port = 1965
 # use "::" for ipv6 and ipv4 or "0.0.0.0" for ipv4 only
 host = "::"
 
-# There must be at least 1 server tag
+# There must be at least 1 server tag if a client doesn't send sni the server
+# will use this tag as its default.
 # Server 1
 [[server]]
 hostname = "example.com"
