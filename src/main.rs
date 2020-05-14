@@ -2,30 +2,30 @@
 extern crate serde_derive;
 
 use futures_util::future::TryFutureExt;
+use mime;
+use mime_guess;
+use openssl::ssl::NameType;
+use std::env;
 use std::fs;
 use std::fs::File;
-use std::io::{self, BufReader, BufRead};
+use std::io::{self, BufRead, BufReader};
 use std::net::ToSocketAddrs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use std::env;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 use tokio::runtime;
-use openssl::ssl::NameType;
 use url::Url;
-use mime_guess;
-use mime;
 
 mod cgi;
 mod config;
 mod status;
 use status::Status;
-mod tls;
 mod conn;
-mod revproxy;
 mod logger;
+mod revproxy;
+mod tls;
 
 fn get_mime(path: &PathBuf) -> String {
     let mut mime = "text/gemini";
@@ -38,14 +38,15 @@ fn get_mime(path: &PathBuf) -> String {
     if ext != "gemini" {
         m = mime_guess::from_ext(ext).first().unwrap();
         mime = m.essence_str();
-    } 
+    }
     mime.to_string()
 }
 
-async fn get_binary(mut con: conn::Connection, path:PathBuf, meta: String) -> io::Result<()> {
+async fn get_binary(mut con: conn::Connection, path: PathBuf, meta: String) -> io::Result<()> {
     let fd = File::open(path)?;
-    let mut reader = BufReader::with_capacity(1024*1024,fd);
-    con.send_status(status::Status::Success, Some(&meta)).await?;
+    let mut reader = BufReader::with_capacity(1024 * 1024, fd);
+    con.send_status(status::Status::Success, Some(&meta))
+        .await?;
     loop {
         let len = {
             let buf = reader.fill_buf()?;
@@ -53,7 +54,7 @@ async fn get_binary(mut con: conn::Connection, path:PathBuf, meta: String) -> io
             buf.len()
         };
         if len == 0 {
-            break
+            break;
         }
         reader.consume(len);
     }
@@ -74,7 +75,7 @@ fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
             let m = file.metadata()?;
             let perm = m.permissions();
             if perm.mode() & 0o0444 != 0o0444 {
-                continue
+                continue;
             }
             let file = file.path();
             let p = file.strip_prefix(&path).unwrap();
@@ -88,9 +89,11 @@ fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
     return Ok(list);
 }
 
-
-// TODO Rewrite this monster. 
-async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -> Result<(), io::Error> {
+// TODO Rewrite this monster.
+async fn handle_connection(
+    mut con: conn::Connection,
+    srv: &config::ServerCfg,
+) -> Result<(), io::Error> {
     let mut buffer = [0; 1024];
     con.stream.read(&mut buffer).await?;
     let mut request = match String::from_utf8(buffer[..].to_vec()) {
@@ -98,7 +101,7 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
         Err(_) => {
             logger::logger(con.peer_addr, Status::BadRequest, "");
             con.send_status(Status::BadRequest, None).await?;
-            return Ok(())
+            return Ok(());
         }
     };
     if request.starts_with("//") {
@@ -110,7 +113,7 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
         Err(_) => {
             logger::logger(con.peer_addr, Status::BadRequest, &request);
             con.send_status(Status::BadRequest, None).await?;
-            return Ok(())
+            return Ok(());
         }
     };
 
@@ -121,52 +124,62 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
     }
 
     match url.port() {
-        Some(p) => { if p != srv.port {
-            logger::logger(con.peer_addr, Status::ProxyRequestRefused, &request);
-            con.send_status(status::Status::ProxyRequestRefused, None).await?;
-        }},
+        Some(p) => {
+            if p != srv.port {
+                logger::logger(con.peer_addr, Status::ProxyRequestRefused, &request);
+                con.send_status(status::Status::ProxyRequestRefused, None)
+                    .await?;
+            }
+        }
         None => {}
     }
 
     if url.scheme() != "gemini" {
         logger::logger(con.peer_addr, Status::ProxyRequestRefused, &request);
-        con.send_status(Status::ProxyRequestRefused, None)
-        .await?;
+        con.send_status(Status::ProxyRequestRefused, None).await?;
         return Ok(());
     }
 
+    if srv.redirect.len() != 0 {
+        let u = url.path().trim_end_matches("/");
+        match srv.redirect.get(u) {
+            Some(r) => {
+                logger::logger(con.peer_addr, Status::RedirectTemporary, &request);
+                con.send_status(Status::RedirectTemporary, Some(r)).await?;
+                return Ok(());
+            }
+            None => {}
+        }
+    }
     if srv.proxy.len() != 0 {
         match url.path_segments().map(|c| c.collect::<Vec<_>>()) {
-            Some(s) => {
-                match srv.proxy.get(s[0]) {
-                    Some(p) => {
-                        revproxy::proxy(p.to_string(), url, con).await?;
-                        return Ok(());
-                    },
-                    None => {},
+            Some(s) => match srv.proxy.get(s[0]) {
+                Some(p) => {
+                    revproxy::proxy(p.to_string(), url, con).await?;
+                    return Ok(());
                 }
-            }
-            None => {},
-        }    
+                None => {}
+            },
+            None => {}
+        }
     }
 
     let mut path = PathBuf::new();
 
-    if url.path().starts_with("/~") && srv.usrdir == true{
+    if url.path().starts_with("/~") && srv.usrdir == true {
         let usr = url.path().trim_start_matches("/~");
         let usr: Vec<&str> = usr.splitn(2, "/").collect();
         path.push("/home/");
         if usr.len() == 2 {
             path.push(format!("{}/{}/{}", usr[0], "public_gemini", usr[1]));
         } else {
-            path.push(format!("{}/{}/",usr[0], "public_gemini"));
+            path.push(format!("{}/{}/", usr[0], "public_gemini"));
         }
     } else {
         path.push(&srv.dir);
         if url.path() != "" || url.path() != "/" {
             path.push(url.path().trim_start_matches("/"));
         }
-
     }
 
     if !path.exists() {
@@ -197,7 +210,7 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
             if perm.mode() & 0o0444 != 0o444 {
                 let mut p = path.clone();
                 p.pop();
-                path.push(format!("{}/",p.display()));
+                path.push(format!("{}/", p.display()));
                 meta = fs::metadata(&path).expect("Unable to read metadata");
                 perm = meta.permissions();
             }
@@ -207,8 +220,8 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
     // TODO add timeout
     if srv.cgi.trim_end_matches("/") == path.parent().unwrap().to_str().unwrap() {
         if perm.mode() & 0o0111 == 0o0111 {
-        cgi::cgi(con, path, url).await?;
-        return Ok(());
+            cgi::cgi(con, srv, path, url).await?;
+            return Ok(());
         } else {
             logger::logger(con.peer_addr, Status::CGIError, &request);
             con.send_status(Status::CGIError, None).await?;
@@ -229,12 +242,8 @@ async fn handle_connection(mut con: conn::Connection, srv: &config::ServerCfg) -
         return Ok(());
     }
     let content = get_content(path, url)?;
-    con.send_body(
-        status::Status::Success,
-        Some(mime.as_str()),
-        Some(content),
-    )
-    .await?;
+    con.send_body(status::Status::Success, Some(mime.as_str()), Some(content))
+        .await?;
     logger::logger(con.peer_addr, Status::Success, &request);
 
     Ok(())
@@ -279,7 +288,9 @@ fn main() -> io::Result<()> {
             let cmap = cmap.clone();
 
             let fut = async move {
-                let mut stream = tokio_openssl::accept(&acceptor, stream).await.expect("Couldn't accept");
+                let mut stream = tokio_openssl::accept(&acceptor, stream)
+                    .await
+                    .expect("Couldn't accept");
                 let sni = match stream.ssl().servername(NameType::HOST_NAME) {
                     Some(s) => s,
                     None => return Ok(()),
@@ -292,13 +303,10 @@ fn main() -> io::Result<()> {
                         stream.write_all(b"59\tNotFound!\r\n").await?;
                         stream.flush().await?;
                         return Ok(());
-                    },
+                    }
                 };
-                
-                let con = conn::Connection {
-                    stream,
-                    peer_addr,
-                };
+
+                let con = conn::Connection { stream, peer_addr };
                 handle_connection(con, srv).await?;
 
                 Ok(()) as io::Result<()>

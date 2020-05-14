@@ -52,7 +52,7 @@ impl Status {
             Status::FutureCertificateRejected => "Future Certificate Rejected",
             Status::ExpiredCertificateRejected => "Expired Certificate Rejected",
         };
-        return meta
+        return meta;
     }
 }
 
@@ -61,4 +61,3 @@ impl fmt::Display for Status {
         write!(f, "{:?}", self)
     }
 }
-

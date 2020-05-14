@@ -1,14 +1,20 @@
 use std::collections::HashMap;
 use std::io;
-use std::path::{PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 use url::Url;
 
-use crate::status::Status;
+use crate::config;
 use crate::conn;
 use crate::logger;
+use crate::status::Status;
 
-pub async fn cgi(mut con: conn::Connection, path: PathBuf, url: Url) -> Result<(), io::Error> {
+pub async fn cgi(
+    mut con: conn::Connection,
+    srv: &config::ServerCfg,
+    path: PathBuf,
+    url: Url,
+) -> Result<(), io::Error> {
     let mut envs = HashMap::new();
     envs.insert("GATEWAY_INTERFACE", "CGI/1.1");
     envs.insert("GEMINI_URL", url.as_str());
@@ -25,6 +31,12 @@ pub async fn cgi(mut con: conn::Connection, path: PathBuf, url: Url) -> Result<(
     if let Some(q) = url.query() {
         envs.insert("QUERY_STRING", q);
     }
+
+    if srv.cgienv.len() != 0 {
+        for (k, v) in srv.cgienv.iter() {
+            envs.insert(&k, &v);
+        }
+    };
 
     let cmd = Command::new(path.to_str().unwrap())
         .env_clear()

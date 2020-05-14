@@ -2,6 +2,8 @@ port = 1965
 # use "::" for ipv6 and ipv4 or "0.0.0.0" for ipv4 only
 host = "::"
 
+# There must be at least 1 server tag
+# Server 1
 [[server]]
 hostname = "example.com"
 dir = "/path/to/serv"
@@ -9,12 +11,17 @@ key = "/path/to/key"
 cert = "/path/to/cert"
 # cgi dir is optional
 cgi = "/path/to/cgi-bin/"
-# usrdir is optional. it'll look in /home/~usr/public_gemini
+# cgienv is optional
+cgienv = { "GIT_PROJECT_ROOT" = "/srv/git" }
+# usrdir is optional. it'll look in /home/usr/public_gemini
 usrdir = true
 # proxy is optional
 # path is what comes after the hostname e.g. example.com/path
 proxy { path = "localhost:1966" }
+# redirect is optional
+redirect = { "/redirect" = "/", "/newdomain" = "gemini://example.net" }
 
+# Server 2
 [[server]]
 hostname = "example.net"
 dir = "/path/to/serv/"

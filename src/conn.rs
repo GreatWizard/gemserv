@@ -12,36 +12,32 @@ pub struct Connection {
 }
 
 impl Connection {
-pub async fn send_status(
-    &mut self,
-    stat: Status,
-    meta: Option<&str>,
-) -> Result<(), io::Error> {
-    self.send_body(stat, meta, None).await?;
-    Ok(())
-}
-
-pub async fn send_body(
-    &mut self,
-    stat: Status,
-    meta: Option<&str>,
-    body: Option<String>,
-) -> Result<(), io::Error> {
-    let meta = match meta {
-        Some(m) => m,
-        None => &stat.to_str(),
-    };
-    let mut s = format!("{}\t{}\r\n", stat as u8, meta);
-    if let Some(b) = body {
-        s += &b;
+    pub async fn send_status(&mut self, stat: Status, meta: Option<&str>) -> Result<(), io::Error> {
+        self.send_body(stat, meta, None).await?;
+        Ok(())
     }
-    self.send_raw(s.as_bytes()).await?;
-    Ok(())
-}
 
-pub async fn send_raw(&mut self, body: &[u8]) -> Result<(), io::Error> {
-    self.stream.write_all(body).await?;
-    self.stream.flush().await?;
-    Ok(())
-}
+    pub async fn send_body(
+        &mut self,
+        stat: Status,
+        meta: Option<&str>,
+        body: Option<String>,
+    ) -> Result<(), io::Error> {
+        let meta = match meta {
+            Some(m) => m,
+            None => &stat.to_str(),
+        };
+        let mut s = format!("{}\t{}\r\n", stat as u8, meta);
+        if let Some(b) = body {
+            s += &b;
+        }
+        self.send_raw(s.as_bytes()).await?;
+        Ok(())
+    }
+
+    pub async fn send_raw(&mut self, body: &[u8]) -> Result<(), io::Error> {
+        self.stream.write_all(body).await?;
+        self.stream.flush().await?;
+        Ok(())
+    }
 }

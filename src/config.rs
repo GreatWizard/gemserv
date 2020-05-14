@@ -1,8 +1,8 @@
 extern crate serde_derive;
 extern crate toml;
 use std::collections::HashMap;
-use toml::de::Error;
 use std::path::Path;
+use toml::de::Error;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
@@ -18,8 +18,10 @@ pub struct Server {
     pub key: String,
     pub cert: String,
     pub cgi: Option<String>,
+    pub cgienv: Option<HashMap<String, String>>,
     pub usrdir: Option<bool>,
     pub proxy: Option<HashMap<String, String>>,
+    pub redirect: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -29,9 +31,11 @@ pub struct ServerCfg {
     pub key: String,
     pub cert: String,
     pub cgi: String,
+    pub cgienv: HashMap<String, String>,
     pub usrdir: bool,
     pub port: u16,
     pub proxy: HashMap<String, String>,
+    pub redirect: HashMap<String, String>,
 }
 
 impl Config {
@@ -54,18 +58,36 @@ impl Config {
             let mut pmap = HashMap::new();
             match &srv.proxy {
                 Some(pr) => pmap = pr.clone(),
-                None => {},
+                None => {}
             };
-            map.insert(srv.hostname.clone(), ServerCfg { 
-                hostname: srv.hostname.clone(),
-                dir: srv.dir.clone(),
-                key: srv.key.clone(),
-                cert: srv.cert.clone(),
-                cgi: cgi,
-                usrdir: usrdir,
-                port: self.port.clone(),
-                proxy: pmap.clone(),
-            });
+
+            let mut rmap = HashMap::new();
+            match &srv.redirect {
+                Some(r) => rmap = r.clone(),
+                None => {}
+            };
+
+            let mut cmap = HashMap::new();
+            match &srv.cgienv {
+                Some(c) => cmap = c.clone(),
+                None => {}
+            };
+
+            map.insert(
+                srv.hostname.clone(),
+                ServerCfg {
+                    hostname: srv.hostname.clone(),
+                    dir: srv.dir.clone(),
+                    key: srv.key.clone(),
+                    cert: srv.cert.clone(),
+                    cgi: cgi,
+                    cgienv: cmap.clone(),
+                    usrdir: usrdir,
+                    port: self.port.clone(),
+                    proxy: pmap.clone(),
+                    redirect: rmap.clone(),
+                },
+            );
         }
         map
     }

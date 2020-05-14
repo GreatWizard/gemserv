@@ -8,6 +8,7 @@ A gemini server written in rust.
  - CGI
  - User directories
  - Reverse proxy
+ - Redirect
 
 ## Installation and running
 
@@ -19,7 +20,11 @@ A gemini server written in rust.
 ## Create server key/cert pairs
 
 
-## CGI
+## CGI Environments
+
+These variables are preset for you. If you need more you can define them in the
+config file under "cgienv"
+
  - GEMINI_URL
  - SERVER_NAME
  - SERVER_PROTOCOL

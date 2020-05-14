@@ -1,12 +1,12 @@
+use openssl::ssl::{SslConnector, SslMethod};
 use std::io;
 use std::net::ToSocketAddrs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use openssl::ssl::{SslConnector, SslMethod};
 
 use crate::conn;
-use crate::status::Status;
 use crate::logger;
+use crate::status::Status;
 
 pub async fn proxy(addr: String, u: url::Url, mut con: conn::Connection) -> Result<(), io::Error> {
     let p: Vec<&str> = u.path().trim_start_matches("/").splitn(2, "/").collect();
@@ -18,7 +18,7 @@ pub async fn proxy(addr: String, u: url::Url, mut con: conn::Connection) -> Resu
     if p[1] == "" || p[1] == "/" {
         logger::logger(con.peer_addr, Status::NotFound, u.as_str());
         con.send_status(Status::NotFound, None).await?;
-        return Ok(())
+        return Ok(());
     }
     let addr = addr
         .to_socket_addrs()?
@@ -34,20 +34,20 @@ pub async fn proxy(addr: String, u: url::Url, mut con: conn::Connection) -> Resu
         Err(_) => {
             logger::logger(con.peer_addr, Status::ProxyError, u.as_str());
             con.send_status(Status::ProxyError, None).await?;
-            return Ok(())
-        },
+            return Ok(());
+        }
     };
     let mut stream = match tokio_openssl::connect(config, "localhost", stream).await {
         Ok(s) => s,
         Err(_) => {
             logger::logger(con.peer_addr, Status::ProxyError, u.as_str());
             con.send_status(Status::ProxyError, None).await?;
-            return Ok(())
-        },
+            return Ok(());
+        }
     };
     stream.write_all(p[1].as_bytes()).await?;
     stream.flush().await?;
-    
+
     let mut buf = vec![];
     stream.read_to_end(&mut buf).await?;
     // let req = String::from_utf8(buf[..].to_vec()).unwrap();

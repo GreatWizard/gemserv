@@ -2,12 +2,12 @@ extern crate openssl;
 extern crate tokio_openssl;
 use std::collections::HashMap;
 
-use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
-use openssl::ssl::SniError;
 use openssl::error::ErrorStack;
+use openssl::ssl::NameType;
+use openssl::ssl::SniError;
 use openssl::ssl::SslContextBuilder;
 use openssl::ssl::SslVersion;
-use openssl::ssl::NameType;
+use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 
 use crate::config;
 
@@ -22,15 +22,15 @@ pub fn acceptor_conf(cfg: config::Config) -> Result<SslAcceptor, ErrorStack> {
             Ok(c) => c,
             Err(e) => {
                 eprintln!("Error: Can't load key file");
-                return Err(e)
-            },
+                return Err(e);
+            }
         };
         match ctx.set_certificate_chain_file(&server.cert) {
             Ok(c) => c,
             Err(e) => {
                 eprintln!("Error: Can't load cert file");
-                return Err(e)
-            },
+                return Err(e);
+            }
         };
         let ctx = ctx.build();
         map.insert(server.hostname.clone(), ctx.clone());
@@ -53,7 +53,8 @@ pub fn acceptor_conf(cfg: config::Config) -> Result<SslAcceptor, ErrorStack> {
             } else {
                 &map.get(&"default".to_string()).expect("Can't get default")
             }
-        }).expect("Can't get sni");
+        })
+        .expect("Can't get sni");
         Ok(())
     });
     Ok(acceptor.build())
