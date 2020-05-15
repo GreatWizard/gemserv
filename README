@@ -17,8 +17,19 @@ A gemini server written in rust.
  - Modify the config.toml to your needs
  - Run './target/release/gemserv config.toml'
 
-## Create server key/cert pairs
+### NetBSD
+If running on NetBSD you'll need to set the environmental variable OPENSSL_DIR
+before compiling.
 
+'export OPENSSL_DIR="/usr/pkg"'
+
+Also to run you'll need to symlink libssl, and libcrypt to "/usr/lib" by
+running:
+
+'ln -s /usr/pkg/lib/libssl.so.1.1 /usr/lib'
+'ln -s /usr/pkg/lib/libcrypt.so.1.1 /usr/lib'
+
+Thanks to tiwesdaeg for figuring it out.
 
 ## CGI Environments
 
