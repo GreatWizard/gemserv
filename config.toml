@@ -10,6 +10,9 @@ hostname = "example.com"
 dir = "/path/to/serv"
 key = "/path/to/key"
 cert = "/path/to/cert"
+# index is optional but defaults to index.gemini. The server will serve files
+# ending in gemini or gmi.
+index = "index.gmi"
 # cgi dir is optional
 cgi = "/path/to/cgi-bin/"
 # cgienv is optional

@@ -34,11 +34,17 @@ fn get_mime(path: &PathBuf) -> String {
         Some(p) => p.to_str().unwrap(),
         None => return mime.to_string(),
     };
-    if ext != "gemini" {
-        m = mime_guess::from_ext(ext).first().unwrap();
-        mime = m.essence_str();
-    }
-    mime.to_string()
+
+    mime = match ext {
+        "gemini" => mime,
+        "gmi" => mime,
+        _ => {
+            m = mime_guess::from_ext(ext).first().unwrap();
+            m.essence_str()
+        },
+    };
+
+    return mime.to_string()
 }
 
 async fn get_binary(mut con: conn::Connection, path: PathBuf, meta: String) -> io::Result<()> {
@@ -202,8 +208,8 @@ async fn handle_connection(
             .await?;
             return Ok(());
         }
-        if path.join("index.gemini").exists() {
-            path.push("index.gemini");
+        if path.join(&srv.index).exists() {
+            path.push(&srv.index);
             meta = fs::metadata(&path).expect("Unable to read metadata");
             perm = meta.permissions();
             if perm.mode() & 0o0444 != 0o444 {
@@ -241,7 +247,7 @@ async fn handle_connection(
         return Ok(());
     }
     let content = get_content(path, url)?;
-    con.send_body(status::Status::Success, Some(mime.as_str()), Some(content))
+    con.send_body(status::Status::Success, Some(&mime), Some(content))
         .await?;
     logger::logger(con.peer_addr, Status::Success, &request);
 

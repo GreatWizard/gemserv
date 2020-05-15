@@ -17,6 +17,7 @@ pub struct Server {
     pub dir: String,
     pub key: String,
     pub cert: String,
+    pub index: Option<String>,
     pub cgi: Option<String>,
     pub cgienv: Option<HashMap<String, String>>,
     pub usrdir: Option<bool>,
@@ -30,6 +31,7 @@ pub struct ServerCfg {
     pub dir: String,
     pub key: String,
     pub cert: String,
+    pub index: String,
     pub cgi: String,
     pub cgienv: HashMap<String, String>,
     pub usrdir: bool,
@@ -72,6 +74,10 @@ impl Config {
                 Some(c) => cmap = c.clone(),
                 None => {}
             };
+            let index = match srv.index.to_owned() {
+                Some(i) => i,
+                None => "index.gemini".to_string()
+            };
 
             map.insert(
                 srv.hostname.clone(),
@@ -80,6 +86,7 @@ impl Config {
                     dir: srv.dir.clone(),
                     key: srv.key.clone(),
                     cert: srv.cert.clone(),
+                    index: index.to_string(),
                     cgi: cgi,
                     cgienv: cmap.clone(),
                     usrdir: usrdir,
