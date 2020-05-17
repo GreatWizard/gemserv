@@ -33,7 +33,11 @@ running:
 
 Thanks to tiwesdaeg for figuring it out.
 
-## CGI Environments
+## CGI and SCGI
+
+There's example SCGI scripts for python and perl in the cgi-scripts directory.
+
+### CGI Environments
 
 In the configuration file there's "cgi" which is an optional bool to turn cgi
 on. If it's true it'll run scripts from any directory. To limit it to only one

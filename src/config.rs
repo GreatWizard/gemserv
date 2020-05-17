@@ -24,6 +24,7 @@ pub struct Server {
     pub usrdir: Option<bool>,
     pub proxy: Option<HashMap<String, String>>,
     pub redirect: Option<HashMap<String, String>>,
+    pub scgi: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Clone)]

@@ -180,6 +180,21 @@ async fn handle_connection(
         None => {}
     }
 
+    match &srv.server.scgi {
+        Some(sc) => {
+        let u = url.path().trim_end_matches("/");
+        match sc.get(u) {
+            Some(r) => {
+                cgi::scgi(r.to_string(), url, con, srv).await?;
+                return Ok(());
+            }
+            None => {}
+        }
+        },
+        None => {},
+    }
+
+
     let mut path = PathBuf::new();
 
     if url.path().starts_with("/~") && srv.server.usrdir.unwrap_or(false) {

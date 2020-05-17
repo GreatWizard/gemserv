@@ -18,6 +18,8 @@ cgi = true
 # cgipath is optional and only checked if cgi is true. It restricts cgi to only
 # this directory.
 cgi = "/path/to/cgi-bin/"
+# scgi is optional
+scgi = { "/scgi" = "localhost:4000" }
 # cgienv is optional
 cgienv = { "GIT_PROJECT_ROOT" = "/srv/git" }
 # usrdir is optional. it'll look in /home/usr/public_gemini
