@@ -32,11 +32,14 @@ pub async fn cgi(
         envs.insert("QUERY_STRING", q);
     }
 
-    if srv.cgienv.len() != 0 {
-        for (k, v) in srv.cgienv.iter() {
-            envs.insert(&k, &v);
+    match &srv.server.cgienv {
+        Some(c) => {
+            for (k, v) in c.iter() {
+                envs.insert(&k, &v);
+            }
         }
-    };
+        None => {}
+    }
 
     let cmd = Command::new(path.to_str().unwrap())
         .env_clear()

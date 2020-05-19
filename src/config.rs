@@ -27,17 +27,8 @@ pub struct Server {
 
 #[derive(Debug, Clone)]
 pub struct ServerCfg {
-    pub hostname: String,
-    pub dir: String,
-    pub key: String,
-    pub cert: String,
-    pub index: String,
-    pub cgi: String,
-    pub cgienv: HashMap<String, String>,
-    pub usrdir: bool,
     pub port: u16,
-    pub proxy: HashMap<String, String>,
-    pub redirect: HashMap<String, String>,
+    pub server: Server,
 }
 
 impl Config {
@@ -49,50 +40,11 @@ impl Config {
     pub fn to_map(&self) -> HashMap<String, ServerCfg> {
         let mut map = HashMap::new();
         for srv in &self.server {
-            let cgi = match srv.cgi.to_owned() {
-                Some(c) => c,
-                None => "".to_string(),
-            };
-            let usrdir = match srv.usrdir {
-                Some(u) => u,
-                None => false,
-            };
-            let mut pmap = HashMap::new();
-            match &srv.proxy {
-                Some(pr) => pmap = pr.clone(),
-                None => {}
-            };
-
-            let mut rmap = HashMap::new();
-            match &srv.redirect {
-                Some(r) => rmap = r.clone(),
-                None => {}
-            };
-
-            let mut cmap = HashMap::new();
-            match &srv.cgienv {
-                Some(c) => cmap = c.clone(),
-                None => {}
-            };
-            let index = match srv.index.to_owned() {
-                Some(i) => i,
-                None => "index.gemini".to_string()
-            };
-
             map.insert(
                 srv.hostname.clone(),
                 ServerCfg {
-                    hostname: srv.hostname.clone(),
-                    dir: srv.dir.clone(),
-                    key: srv.key.clone(),
-                    cert: srv.cert.clone(),
-                    index: index.to_string(),
-                    cgi: cgi,
-                    cgienv: cmap.clone(),
-                    usrdir: usrdir,
                     port: self.port.clone(),
-                    proxy: pmap.clone(),
-                    redirect: rmap.clone(),
+                    server: srv.clone(),
                 },
             );
         }

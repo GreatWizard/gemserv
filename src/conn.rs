@@ -27,7 +27,8 @@ impl Connection {
             Some(m) => m,
             None => &stat.to_str(),
         };
-        self.send_raw(format!("{}\t{}\r\n", stat as u8, meta).as_bytes()).await?;
+        self.send_raw(format!("{}\t{}\r\n", stat as u8, meta).as_bytes())
+            .await?;
         if let Some(b) = body {
             self.send_raw(b.as_bytes()).await?;
         }
