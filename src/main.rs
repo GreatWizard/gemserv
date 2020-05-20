@@ -179,7 +179,7 @@ async fn handle_connection(
 
     let mut path = PathBuf::new();
 
-    if url.path().starts_with("/~") && srv.server.usrdir.is_some() {
+    if url.path().starts_with("/~") && srv.server.usrdir.unwrap_or(false) {
         let usr = url.path().trim_start_matches("/~");
         let usr: Vec<&str> = usr.splitn(2, "/").collect();
         path.push("/home/");
