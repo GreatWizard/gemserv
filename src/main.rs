@@ -247,6 +247,7 @@ async fn handle_connection(
             }
         }
     }
+
     if srv.server.cgi.unwrap_or(false) {
         match &srv.server.cgipath {
             Some(c) => {
