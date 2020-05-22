@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
-use std::process::Command;
+use tokio::process::Command;
 use url::Url;
 
 use crate::config;
@@ -44,8 +44,27 @@ pub async fn cgi(
     let cmd = Command::new(path.to_str().unwrap())
         .env_clear()
         .envs(&envs)
-        .output()
-        .unwrap();
+        .output();
+    
+    let cmd = match tokio::time::timeout(tokio::time::Duration::from_secs(5), cmd).await {
+        Ok(c) => {
+            match c {
+                Ok(cc) => cc,
+
+                Err(_) => {
+                    logger::logger(con.peer_addr, Status::CGIError, url.as_str());
+                    con.send_status(Status::CGIError, None).await?;
+                    return Ok(());
+                },
+            }
+        },
+        Err(_) => {
+            logger::logger(con.peer_addr, Status::CGIError, url.as_str());
+            con.send_status(Status::CGIError, None).await?;
+            return Ok(());
+        },
+    };
+
     if !cmd.status.success() {
         logger::logger(con.peer_addr, Status::CGIError, url.as_str());
         con.send_status(Status::CGIError, None).await?;

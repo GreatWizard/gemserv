@@ -66,10 +66,10 @@ async fn get_binary(mut con: conn::Connection, path: PathBuf, meta: String) -> i
     Ok(())
 }
 
-fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
-    let meta = fs::metadata(&path).expect("Unable to read metadata");
+async fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
+    let meta = tokio::fs::metadata(&path).await?;
     if meta.is_file() {
-        return Ok(std::fs::read_to_string(path).expect("Unable to read file"));
+        return Ok(tokio::fs::read_to_string(path).await?);
     }
 
     let mut list = String::from("# Directory Listing\r\n\r\n");
@@ -104,7 +104,11 @@ async fn handle_connection(
         None => "index.gemini".to_string(),
     };
     let mut buffer = [0; 1024];
-    con.stream.read(&mut buffer).await?;
+    if let Err(_) = tokio::time::timeout(tokio::time::Duration::from_secs(5), con.stream.read(&mut buffer)).await {
+        logger::logger(con.peer_addr, Status::BadRequest, "");
+        con.send_status(Status::BadRequest, None).await?;
+        return Ok(());
+    }
     let mut request = match String::from_utf8(buffer[..].to_vec()) {
         Ok(request) => request,
         Err(_) => {
@@ -201,7 +205,7 @@ async fn handle_connection(
         return Ok(());
     }
 
-    let mut meta = fs::metadata(&path).expect("Unable to read metadata");
+    let mut meta = tokio::fs::metadata(&path).await?;
     let mut perm = meta.permissions();
 
     // TODO fix me
@@ -218,19 +222,18 @@ async fn handle_connection(
         }
         if path.join(&index).exists() {
             path.push(index);
-            meta = fs::metadata(&path).expect("Unable to read metadata");
+            meta = tokio::fs::metadata(&path).await?;
             perm = meta.permissions();
             if perm.mode() & 0o0444 != 0o444 {
                 let mut p = path.clone();
                 p.pop();
                 path.push(format!("{}/", p.display()));
-                meta = fs::metadata(&path).expect("Unable to read metadata");
+                meta = tokio::fs::metadata(&path).await?;
                 perm = meta.permissions();
             }
         }
     }
 
-    // TODO add timeout
     match &srv.server.cgi {
         Some(c) => {
             if c.trim_end_matches("/") == path.parent().unwrap().to_str().unwrap() {
@@ -259,7 +262,7 @@ async fn handle_connection(
         get_binary(con, path, mime).await?;
         return Ok(());
     }
-    let content = get_content(path, url)?;
+    let content = get_content(path, url).await?;
     con.send_body(status::Status::Success, Some(&mime), Some(content))
         .await?;
     logger::logger(con.peer_addr, Status::Success, &request);
@@ -293,6 +296,7 @@ fn main() -> io::Result<()> {
     let mut runtime = runtime::Builder::new()
         .threaded_scheduler()
         .enable_io()
+        .enable_time()
         .build()?;
 
     let handle = runtime.handle().clone();
