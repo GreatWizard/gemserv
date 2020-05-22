@@ -132,7 +132,12 @@ pub async fn scgi(addr: String, u: url::Url, mut con: conn::Connection, srv: &co
     stream.flush().await?;
 
     let mut buf = vec![];
-    stream.read_to_end(&mut buf).await?;
+    if let Err(_) = tokio::time::timeout(
+        tokio::time::Duration::from_secs(5), stream.read_to_end(&mut buf)).await {
+        logger::logger(con.peer_addr, Status::CGIError, u.as_str());
+        con.send_status(Status::CGIError, None).await?;
+        return Ok(());
+    }
     let req = String::from_utf8_lossy(&buf[..]);
     if !check(req.as_bytes()[0], con.peer_addr, u) {
         con.send_status(Status::CGIError, None).await?;
