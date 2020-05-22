@@ -35,6 +35,8 @@ Thanks to tiwesdaeg for figuring it out.
 
 ## CGI Environments
 
+Scripts have 5 seconds to complete or they will be terminated.
+
 These variables are preset for you. If you need more you can define them in the
 config file under "cgienv"
 
