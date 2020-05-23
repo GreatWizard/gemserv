@@ -254,16 +254,12 @@ async fn handle_connection(
                 if perm.mode() & 0o0111 == 0o0111 {
                     cgi::cgi(con, srv, path, url).await?;
                     return Ok(());
-                } else {
-                    logger::logger(con.peer_addr, Status::CGIError, &request);
-                    con.send_status(Status::CGIError, None).await?;
-                    return Ok(());
                 }
             },
         }
     }
 
-    if perm.mode() & 0o0444 != 0o0444 {
+    if perm.mode() & 0o0444 != 0o0444  {
         logger::logger(con.peer_addr, Status::NotFound, &request);
         con.send_status(Status::NotFound, None).await?;
         return Ok(());
