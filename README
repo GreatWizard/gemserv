@@ -39,6 +39,9 @@ In the configuration file there's "cgi" which is an optional bool to turn cgi
 on. If it's true it'll run scripts from any directory. To limit it to only one
 directory set "cgipath"
 
+If "cgi" is false or not set the server with respond "Not Found" to any
+executable file.
+
 Scripts have 5 seconds to complete or they will be terminated.
 
 These variables are preset for you. If you need more you can define them in the
