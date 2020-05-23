@@ -13,7 +13,10 @@ cert = "/path/to/cert"
 # index is optional but defaults to index.gemini. The server will serve files
 # ending in gemini or gmi.
 index = "index.gmi"
-# cgi dir is optional
+# cgi is optional bool
+cgi = true
+# cgipath is optional and only checked if cgi is true. It restricts cgi to only
+# this directory.
 cgi = "/path/to/cgi-bin/"
 # cgienv is optional
 cgienv = { "GIT_PROJECT_ROOT" = "/srv/git" }

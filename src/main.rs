@@ -232,9 +232,9 @@ async fn handle_connection(
             }
         }
     }
-
-    match &srv.server.cgi {
-        Some(c) => {
+    if srv.server.cgi.unwrap_or(false) {
+        match &srv.server.cgipath {
+            Some(c) => {
             if c.trim_end_matches("/") == path.parent().unwrap().to_str().unwrap() {
                 if perm.mode() & 0o0111 == 0o0111 {
                     cgi::cgi(con, srv, path, url).await?;
@@ -244,9 +244,23 @@ async fn handle_connection(
                     con.send_status(Status::CGIError, None).await?;
                     return Ok(());
                 }
+            } else {
+                logger::logger(con.peer_addr, Status::CGIError, &request);
+                con.send_status(Status::CGIError, None).await?;
+                return Ok(());
             }
+            },
+            None => {
+                if perm.mode() & 0o0111 == 0o0111 {
+                    cgi::cgi(con, srv, path, url).await?;
+                    return Ok(());
+                } else {
+                    logger::logger(con.peer_addr, Status::CGIError, &request);
+                    con.send_status(Status::CGIError, None).await?;
+                    return Ok(());
+                }
+            },
         }
-        None => {}
     }
 
     if perm.mode() & 0o0444 != 0o0444 {
