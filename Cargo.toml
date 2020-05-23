@@ -1,6 +1,6 @@
 [package]
 name = "gemserv"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["int 80h <int@80h.dev>"]
 edition = "2018"
 
