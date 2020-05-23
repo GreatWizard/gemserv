@@ -2,7 +2,6 @@
 extern crate serde_derive;
 
 use futures_util::future::TryFutureExt;
-use mime;
 use mime_guess;
 use openssl::ssl::NameType;
 use std::env;
@@ -27,9 +26,7 @@ mod revproxy;
 mod tls;
 
 fn get_mime(path: &PathBuf) -> String {
-    let mut mime = "text/gemini";
-    let m: mime::Mime;
-
+    let mut mime = "text/gemini".to_string();
     let ext = match path.extension() {
         Some(p) => p.to_str().unwrap(),
         None => return mime.to_string(),
@@ -39,9 +36,11 @@ fn get_mime(path: &PathBuf) -> String {
         "gemini" => mime,
         "gmi" => mime,
         _ => {
-            m = mime_guess::from_ext(ext).first().unwrap();
-            m.essence_str()
-        }
+            match mime_guess::from_ext(ext).first() {
+                Some(m) => m.essence_str().to_string(),
+                None => mime,
+            }
+        },
     };
 
     return mime.to_string();
