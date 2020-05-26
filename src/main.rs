@@ -432,6 +432,7 @@ fn main() -> io::Result<()> {
                         return Ok(());
                     },
                 };
+
                 let srv = match stream.ssl().servername(NameType::HOST_NAME) {
                     Some(s) => match cmap.get(s) {
                         Some(ss) => ss,

@@ -19,9 +19,10 @@ use crate::config;
 use crate::conn;
 use crate::logger;
 use crate::status::Status;
+use crate::util;
 
 #[cfg(any(feature = "cgi", feature = "scgi"))]
-fn envs(peer_addr: SocketAddr, srv: &config::ServerCfg, url: &url::Url) -> HashMap<String, String> {
+fn envs(peer_addr: SocketAddr, x509: Option<openssl::x509::X509>, srv: &config::ServerCfg, url: &url::Url) -> HashMap<String, String> {
     let mut envs = HashMap::new();
     envs.insert("GATEWAY_INTERFACE".to_string(), "CGI/1.1".to_string());
     envs.insert("GEMINI_URL".to_string(), url.to_string());
@@ -36,6 +37,24 @@ fn envs(peer_addr: SocketAddr, srv: &config::ServerCfg, url: &url::Url) -> HashM
 
     if let Some(q) = url.query() {
         envs.insert("QUERY_STRING".to_string(), q.to_string());
+    }
+
+    match x509 {
+        Some(x) => {
+            envs.insert("AUTH_TYPE".to_string(), "Certificate".to_string());
+
+            let cn = x.subject_name().entries_by_nid(openssl::nid::Nid::COMMONNAME);
+            for c in cn {
+               let cd = match c.data().as_utf8() {
+                    Ok(n) => n.to_string(),
+                    _ => "".to_string(),
+                };
+               envs.insert("REMOTE_USER".to_string(), cd);
+            }
+
+            envs.insert("TLS_CLIENT_HASH".to_string(), util::fingerhex(&x));
+        },
+        None => {},
     }
 
     match &srv.server.cgienv {
@@ -76,7 +95,9 @@ pub async fn cgi(
     script_name: String,
     path_info: String
 ) -> Result<(), io::Error> {
-    let mut envs = envs(con.peer_addr, srv, &url);
+
+    let x509 = con.stream.ssl().peer_certificate();
+    let mut envs = envs(con.peer_addr, x509, srv, &url);
     envs.insert("SCRIPT_NAME".into(), script_name);
     envs.insert("PATH_INFO".into(), path_info);
 
@@ -141,7 +162,8 @@ pub async fn scgi(addr: String, u: url::Url, mut con: conn::Connection, srv: &co
             return Ok(());
         }
     };
-    let envs = envs(con.peer_addr, srv, &u);
+    let x509 = con.stream.ssl().peer_certificate();
+    let envs = envs(con.peer_addr, x509, srv, &u);
     let len = 0usize;
     let mut byt = String::from(format!("CONTENT_LENGTH\x00{}\x00SCGI\x001\x00
         RQUEST_METHOD\x00POST\x00REQUEST_URI\x00{}\x00", len, u.path()));

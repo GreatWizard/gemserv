@@ -7,17 +7,19 @@ use openssl::ssl::NameType;
 use openssl::ssl::SniError;
 use openssl::ssl::SslContextBuilder;
 use openssl::ssl::SslVersion;
+use openssl::ssl::SslVerifyMode;
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 
 use crate::config;
 
 pub fn acceptor_conf(cfg: config::Config) -> Result<SslAcceptor, ErrorStack> {
-    let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls())?;
+    let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls_server())?;
     acceptor.set_min_proto_version(Some(SslVersion::TLS1_2))?;
     let mut map = HashMap::new();
     let mut num = 1;
     for server in cfg.server.iter() {
-        let mut ctx = SslContextBuilder::new(SslMethod::tls())?;
+        let mut ctx = SslContextBuilder::new(SslMethod::tls_server())?;
+        ctx.set_verify(SslVerifyMode::NONE);
         match ctx.set_private_key_file(&server.key, SslFiletype::PEM) {
             Ok(c) => c,
             Err(e) => {
@@ -55,7 +57,13 @@ pub fn acceptor_conf(cfg: config::Config) -> Result<SslAcceptor, ErrorStack> {
             }
         })
         .expect("Can't get sni");
+        // for client certs we don't have anything to verify right now?
+        ssl.set_verify_callback(SslVerifyMode::PEER, |_ver, _store| -> bool {
+            return true
+        });
+
         Ok(())
     });
+
     Ok(acceptor.build())
 }

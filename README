@@ -69,3 +69,9 @@ config file under "cgienv"
  - REMOTE_PORT
  - QUERY_STRING
  - PATH_INFO
+
+TLS variables
+ - AUTH_TYPE
+ - TLS_CLIENT_HASH
+ - REMOTE_USER
+
