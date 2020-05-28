@@ -9,6 +9,7 @@ A gemini server written in rust.
  - User directories
  - Reverse proxy
  - Redirect
+ - SCGI
 
 ## Installation and running
 

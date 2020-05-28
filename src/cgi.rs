@@ -66,6 +66,13 @@ pub async fn cgi(
     let mut envs = envs(con.peer_addr, srv, &url);
     envs.insert("SCRIPT_NAME".to_string(), path.file_name().unwrap().to_str().unwrap().to_string());
 
+    match path.parent() {
+        Some(p) => {
+            std::env::set_current_dir(p)?;
+        },
+        None => {},
+    }
+
     let cmd = Command::new(path.to_str().unwrap())
         .env_clear()
         .envs(&envs)

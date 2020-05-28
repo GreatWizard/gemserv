@@ -36,7 +36,10 @@ pub struct ServerCfg {
 impl Config {
     pub fn new(file: &Path) -> Result<Config, Error> {
         let fd = std::fs::read_to_string(file).unwrap();
-        let config: Config = toml::from_str(&fd).unwrap();
+        let config: Config = match toml::from_str(&fd) {
+            Ok(c) => c,
+            Err(e) => return Err(e),
+        };
         return Ok(config);
     }
     pub fn to_map(&self) -> HashMap<String, ServerCfg> {

@@ -1,0 +1,15 @@
+20200528:
+	AFFECTS: CGI USERS
+
+	The cgi variable in the configuration file changed from:
+
+	cgi = /path/to/cgi-bin
+	
+	To:
+
+	cgi = true
+	cgipath = /path/to/cgi-bin
+
+	If cgi isn't set to true the cgipath variable will not be looked at. And
+	if the cgipath isn't set but cgi is true then cgi will run from
+	anywhere.

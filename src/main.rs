@@ -29,7 +29,7 @@ fn get_mime(path: &PathBuf) -> String {
     let mut mime = "text/gemini".to_string();
     let ext = match path.extension() {
         Some(p) => p.to_str().unwrap(),
-        None => return mime.to_string(),
+        None => return mime,
     };
 
     mime = match ext {
@@ -38,12 +38,12 @@ fn get_mime(path: &PathBuf) -> String {
         _ => {
             match mime_guess::from_ext(ext).first() {
                 Some(m) => m.essence_str().to_string(),
-                None => mime,
+                None => "text/plain".to_string(),
             }
         },
     };
 
-    return mime.to_string();
+    return mime;
 }
 
 async fn get_binary(mut con: conn::Connection, path: PathBuf, meta: String) -> io::Result<()> {
@@ -263,20 +263,19 @@ async fn handle_connection(
             }
             },
             None => {
-                if perm.mode() & 0o0111 == 0o0111 {
+                if meta.is_file() && perm.mode() & 0o0111 == 0o0111 {
                     cgi::cgi(con, srv, path, url).await?;
                     return Ok(());
                 }
             },
         }
     }
-
-    if perm.mode() & 0o0111 == 0o0111  {
+    if meta.is_file() && perm.mode() & 0o0111 == 0o0111  {
         logger::logger(con.peer_addr, Status::NotFound, &request);
         con.send_status(Status::NotFound, None).await?;
         return Ok(());
     }
-    
+
     if perm.mode() & 0o0444 != 0o0444  {
         logger::logger(con.peer_addr, Status::NotFound, &request);
         con.send_status(Status::NotFound, None).await?;
@@ -310,7 +309,13 @@ fn main() -> io::Result<()> {
         return Ok(());
     }
 
-    let cfg = config::Config::new(&p)?;
+    let cfg = match config::Config::new(&p) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Config error: {}", e);
+            return Ok(());
+        },
+    };
     let cmap = cfg.to_map();
     let default = &cfg.server[0].hostname;
     println!("Serving {} vhosts", cfg.server.len());
