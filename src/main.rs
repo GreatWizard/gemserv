@@ -27,9 +27,12 @@ mod tls;
 
 fn get_mime(path: &PathBuf) -> String {
     let mut mime = "text/gemini".to_string();
+    if path.is_dir() {
+        return mime;
+    }
     let ext = match path.extension() {
         Some(p) => p.to_str().unwrap(),
-        None => return mime,
+        None => return "text/plain".to_string(),
     };
 
     mime = match ext {
