@@ -300,7 +300,6 @@ async fn handle_connection(
 }
 
 fn main() -> io::Result<()> {
-    simple_logger::init_with_level(log::Level::Info).unwrap();
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         println!("Please run with the path to the config file.");
@@ -319,6 +318,21 @@ fn main() -> io::Result<()> {
             return Ok(());
         },
     };
+    let loglev = match &cfg.log {
+        None => log::Level::Info,
+        Some(l) => {
+            match l.as_str() {
+                "error" => log::Level::Error,
+                "warn" => log::Level::Warn,
+                "info" => log::Level::Info,
+                _ => {
+                    eprintln!("Incorrect log level in config file.");
+                    return Ok(());
+               },
+            }
+        },
+    };
+    simple_logger::init_with_level(loglev).unwrap();
     let cmap = cfg.to_map();
     let default = &cfg.server[0].hostname;
     println!("Serving {} vhosts", cfg.server.len());

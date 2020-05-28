@@ -8,6 +8,7 @@ use toml::de::Error;
 pub struct Config {
     pub port: u16,
     pub host: String,
+    pub log: Option<String>,
     pub server: Vec<Server>,
 }
 
