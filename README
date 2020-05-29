@@ -20,6 +20,11 @@ OpenSSL 1.1.0g or LibreSSL 2.7.0 or newer is required.
  - Modify the config.toml to your needs
  - Run './target/release/gemserv config.toml'
 
+### Init scripts
+
+In the init-scripts directory there's OpenRC(Courtesy of Tastytea) and systemd
+service files.
+
 ### NetBSD
 If running on NetBSD you'll need to set the environmental variable OPENSSL_DIR
 before compiling.
