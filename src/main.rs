@@ -176,6 +176,8 @@ async fn handle_connection(
         }
         None => {}
     }
+
+    #[cfg(feature = "proxy")]
     match &srv.server.proxy {
         Some(pr) => match url.path_segments().map(|c| c.collect::<Vec<_>>()) {
             Some(s) => match pr.get(s[0]) {
@@ -190,6 +192,7 @@ async fn handle_connection(
         None => {}
     }
 
+    #[cfg(feature = "scgi")]
     match &srv.server.scgi {
         Some(sc) => {
         let u = url.path().trim_end_matches("/");
@@ -258,6 +261,7 @@ async fn handle_connection(
         }
     }
 
+    #[cfg(feature = "cgi")]
     if srv.server.cgi.unwrap_or(false) {
         match &srv.server.cgipath {
             Some(c) => {

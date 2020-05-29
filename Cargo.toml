@@ -20,6 +20,12 @@ mime = "0.3.16"
 log = "0.4"
 simple_logger = "1"
 
+[features]
+default = [ "cgi", "scgi", "proxy" ]
+cgi = []
+scgi = []
+proxy = []
+
 [profile.release]
 lto = true
 codegen-units = 1

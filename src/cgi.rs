@@ -1,10 +1,18 @@
+#![cfg(any(feature = "cgi", feature = "scgi"))]
 use std::collections::HashMap;
 use std::io;
-use std::path::PathBuf;
+use std::net::SocketAddr;
+
+#[cfg(feature = "cgi")]
 use tokio::process::Command;
-use url::Url;
-use std::net::{SocketAddr, ToSocketAddrs};
+#[cfg(feature = "cgi")]
+use std::path::PathBuf;
+
+#[cfg(feature = "scgi")]
+use std::net::ToSocketAddrs;
+#[cfg(feature = "scgi")]
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+#[cfg(feature = "scgi")]
 use tokio::net::TcpStream;
 
 use crate::config;
@@ -12,6 +20,7 @@ use crate::conn;
 use crate::logger;
 use crate::status::Status;
 
+#[cfg(any(feature = "cgi", feature = "scgi"))]
 fn envs(peer_addr: SocketAddr, srv: &config::ServerCfg, url: &url::Url) -> HashMap<String, String> {
     let mut envs = HashMap::new();
     envs.insert("GATEWAY_INTERFACE".to_string(), "CGI/1.1".to_string());
@@ -40,6 +49,7 @@ fn envs(peer_addr: SocketAddr, srv: &config::ServerCfg, url: &url::Url) -> HashM
     envs
 }
 
+#[cfg(any(feature = "cgi", feature = "scgi"))]
 fn check(byt: u8, peer_addr: SocketAddr, u: url::Url) -> bool {
     match byt {
         49 => {
@@ -57,11 +67,12 @@ fn check(byt: u8, peer_addr: SocketAddr, u: url::Url) -> bool {
     true
 }
 
+#[cfg(feature = "cgi")]
 pub async fn cgi(
     mut con: conn::Connection,
     srv: &config::ServerCfg,
     path: PathBuf,
-    url: Url,
+    url: url::Url,
 ) -> Result<(), io::Error> {
     let mut envs = envs(con.peer_addr, srv, &url);
     envs.insert("SCRIPT_NAME".to_string(), path.file_name().unwrap().to_str().unwrap().to_string());
@@ -112,6 +123,7 @@ pub async fn cgi(
     return Ok(());
 }
 
+#[cfg(feature = "scgi")]
 pub async fn scgi(addr: String, u: url::Url, mut con: conn::Connection, srv: &config::ServerCfg) -> Result<(), io::Error> {
     let addr = addr
         .to_socket_addrs()?

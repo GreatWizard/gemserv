@@ -19,12 +19,17 @@ pub struct Server {
     pub key: String,
     pub cert: String,
     pub index: Option<String>,
+    #[cfg(feature = "cgi")]
     pub cgi: Option<bool>,
+    #[cfg(feature = "cgi")]
     pub cgipath: Option<String>,
+    #[cfg(any(feature = "cgi", feature = "scgi"))]
     pub cgienv: Option<HashMap<String, String>>,
     pub usrdir: Option<bool>,
+    #[cfg(feature = "proxy")]
     pub proxy: Option<HashMap<String, String>>,
     pub redirect: Option<HashMap<String, String>>,
+    #[cfg(feature = "scgi")]
     pub scgi: Option<HashMap<String, String>>,
 }
 

@@ -1,3 +1,4 @@
+#![cfg(feature = "proxy")]
 use openssl::ssl::{SslConnector, SslMethod};
 use std::io;
 use std::net::ToSocketAddrs;
