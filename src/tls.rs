@@ -21,14 +21,14 @@ pub fn acceptor_conf(cfg: config::Config) -> Result<SslAcceptor, ErrorStack> {
         match ctx.set_private_key_file(&server.key, SslFiletype::PEM) {
             Ok(c) => c,
             Err(e) => {
-                eprintln!("Error: Can't load key file");
+                log::error!("Error: Can't load key file");
                 return Err(e);
             }
         };
         match ctx.set_certificate_chain_file(&server.cert) {
             Ok(c) => c,
             Err(e) => {
-                eprintln!("Error: Can't load cert file");
+                log::error!("Error: Can't load cert file");
                 return Err(e);
             }
         };

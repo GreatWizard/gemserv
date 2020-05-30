@@ -361,10 +361,13 @@ fn main() -> io::Result<()> {
             let default = default.clone();
 
             let fut = async move {
-                let stream = tokio_openssl::accept(&acceptor, stream)
-                    .await
-                    .expect("Couldn't accept");
-
+                let stream = match tokio_openssl::accept(&acceptor, stream).await {
+                    Ok(s) => s,
+                    Err(e) => {
+                        log::error!("Error: {}",e);
+                        return Ok(());
+                    },
+                };
                 let srv = match stream.ssl().servername(NameType::HOST_NAME) {
                     Some(s) => match cmap.get(s) {
                         Some(ss) => ss,
