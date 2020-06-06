@@ -123,6 +123,13 @@ async fn handle_connection(
         request = request.replacen("//", "gemini://", 1);
     }
 
+    if request.ends_with("\n") {
+        request.pop();
+        if request.ends_with("\r") {
+            request.pop();
+        }
+    }
+
     let url = match Url::parse(&request) {
         Ok(url) => url,
         Err(_) => {
