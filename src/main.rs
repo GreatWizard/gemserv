@@ -296,7 +296,10 @@ async fn handle_connection(
         return Ok(());
     }
 
-    let mime = get_mime(&path);
+    let mut mime = get_mime(&path);
+    if mime == "text/gemini" && srv.server.lang.is_some() {
+        mime += &("; lang=".to_string() + &srv.server.lang.to_owned().unwrap());
+    }
     if !mime.starts_with("text/") {
         logger::logger(con.peer_addr, Status::Success, &request);
         get_binary(con, path, mime).await?;

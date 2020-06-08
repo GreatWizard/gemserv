@@ -16,7 +16,8 @@ A gemini server written in rust.
 OpenSSL 1.1.0g or LibreSSL 2.7.0 or newer is required.
 
  - Clone the repo
- - Run 'cargo build --release'
+ - If you want to use all features run 'cargo build --release' or if you only
+   want to serve static files run 'cargo build --release --no-default-features'
  - Modify the config.toml to your needs
  - Run './target/release/gemserv config.toml'
 

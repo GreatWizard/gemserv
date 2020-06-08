@@ -19,6 +19,7 @@ pub struct Server {
     pub key: String,
     pub cert: String,
     pub index: Option<String>,
+    pub lang: Option<String>,
     #[cfg(feature = "cgi")]
     pub cgi: Option<bool>,
     #[cfg(feature = "cgi")]

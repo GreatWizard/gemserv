@@ -17,6 +17,8 @@ cert = "/path/to/cert"
 # index is optional but defaults to index.gemini. The server will serve files
 # ending in gemini or gmi.
 index = "index.gmi"
+# lang is optional
+lang = "en"
 # cgi is optional bool
 cgi = true
 # cgipath is optional and only checked if cgi is true. It restricts cgi to only
