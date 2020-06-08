@@ -24,6 +24,7 @@ mod conn;
 mod logger;
 mod revproxy;
 mod tls;
+mod util;
 
 fn get_mime(path: &PathBuf) -> String {
     let mut mime = "text/gemini".to_string();
@@ -86,10 +87,18 @@ async fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
             }
             let file = file.path();
             let p = file.strip_prefix(&path).unwrap();
+            let ps = match p.to_str() {
+                Some(s) => s,
+                None => continue,
+            };
+            let ep = match u.join(ps) {
+                Ok(p) => p,
+                _ => continue,
+            };
             if m.is_dir() {
-                list.push_str(&format!("=> {}/ {}/\r\n", p.display(), p.display()));
+                list.push_str(&format!("=> {}/ {}/\r\n", ep, p.display()));
             } else {
-                list.push_str(&format!("=> {} {}\r\n", p.display(), p.display()));
+                list.push_str(&format!("=> {} {}\r\n", ep, p.display()));
             }
         }
     }
@@ -215,14 +224,15 @@ async fn handle_connection(
         let usr: Vec<&str> = usr.splitn(2, "/").collect();
         path.push("/home/");
         if usr.len() == 2 {
-            path.push(format!("{}/{}/{}", usr[0], "public_gemini", usr[1]));
+            path.push(format!("{}/{}/{}", usr[0], "public_gemini", util::url_decode(usr[1].as_bytes())));
         } else {
             path.push(format!("{}/{}/", usr[0], "public_gemini"));
         }
     } else {
         path.push(&srv.server.dir);
         if url.path() != "" || url.path() != "/" {
-            path.push(url.path().trim_start_matches("/"));
+            let decoded = util::url_decode(url.path().trim_start_matches("/").as_bytes());
+            path.push(decoded);
         }
     }
 
