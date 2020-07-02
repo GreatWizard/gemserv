@@ -50,7 +50,7 @@ fn envs(peer_addr: SocketAddr, srv: &config::ServerCfg, url: &url::Url) -> HashM
 }
 
 #[cfg(any(feature = "cgi", feature = "scgi"))]
-fn check(byt: u8, peer_addr: SocketAddr, u: url::Url) -> bool {
+fn check(byt: u8, peer_addr: SocketAddr, u: &url::Url) -> bool {
     match byt {
         49 => {
             logger::logger(peer_addr, Status::Input, u.as_str());
@@ -69,13 +69,16 @@ fn check(byt: u8, peer_addr: SocketAddr, u: url::Url) -> bool {
 
 #[cfg(feature = "cgi")]
 pub async fn cgi(
-    mut con: conn::Connection,
+    con: &mut conn::Connection,
     srv: &config::ServerCfg,
     path: PathBuf,
-    url: url::Url,
+    url: &url::Url,
+    script_name: String,
+    path_info: String
 ) -> Result<(), io::Error> {
     let mut envs = envs(con.peer_addr, srv, &url);
-    envs.insert("SCRIPT_NAME".to_string(), path.file_name().unwrap().to_str().unwrap().to_string());
+    envs.insert("SCRIPT_NAME".into(), script_name);
+    envs.insert("PATH_INFO".into(), path_info);
 
     match path.parent() {
         Some(p) => {
@@ -88,7 +91,7 @@ pub async fn cgi(
         .env_clear()
         .envs(&envs)
         .output();
-    
+
     let cmd = match tokio::time::timeout(tokio::time::Duration::from_secs(5), cmd).await {
         Ok(c) => {
             match c {
@@ -118,7 +121,7 @@ pub async fn cgi(
         con.send_status(Status::CGIError, None).await?;
         return Ok(());
     }
-    
+
     con.send_raw(cmd.as_bytes()).await?;
     return Ok(());
 }
@@ -146,7 +149,7 @@ pub async fn scgi(addr: String, u: url::Url, mut con: conn::Connection, srv: &co
         byt.push_str(&format!("{}\x00{}\x00", k, v));
     }
     byt = byt.len().to_string() + ":" + &byt + ",";
-    
+
     stream.write_all(byt.as_bytes()).await?;
     stream.flush().await?;
 
@@ -158,7 +161,7 @@ pub async fn scgi(addr: String, u: url::Url, mut con: conn::Connection, srv: &co
         return Ok(());
     }
     let req = String::from_utf8_lossy(&buf[..]);
-    if !check(req.as_bytes()[0], con.peer_addr, u) {
+    if !check(req.as_bytes()[0], con.peer_addr, &u) {
         con.send_status(Status::CGIError, None).await?;
         return Ok(());
     }

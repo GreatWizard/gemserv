@@ -105,6 +105,58 @@ async fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
     return Ok(list);
 }
 
+// Handle CGI and return Ok(true), or indicate this request wasn't for CGI with Ok(false)
+#[cfg(feature = "cgi")]
+async fn handle_cgi(
+    con: &mut conn::Connection,
+    srv: &config::ServerCfg,
+    request: &str,
+    url: &Url,
+    full_path: &PathBuf,
+) -> Result<bool, io::Error> {
+    if srv.server.cgi.unwrap_or(false) {
+        let mut path = full_path.clone();
+        let mut segments = url.path_segments().unwrap();
+        let mut path_info = "".to_string();
+
+        // Find an ancestor url that matches a file
+        while !path.exists() {
+            if let Some(segment) = segments.next_back() {
+                path.pop();
+                path_info = format!("/{}{}", &segment, path_info);
+            } else {
+                return Ok(false);
+            }
+        }
+        let script_name = format!("/{}", segments.collect::<Vec<_>>().join("/"));
+
+        let meta = tokio::fs::metadata(&path).await?;
+        let perm = meta.permissions();
+
+        match &srv.server.cgipath {
+            Some(c) => {
+            if path.starts_with(c) {
+                if perm.mode() & 0o0111 == 0o0111 {
+                    cgi::cgi(con, srv, path, url, script_name, path_info).await?;
+                    return Ok(true);
+                } else {
+                    logger::logger(con.peer_addr, Status::CGIError, request);
+                    con.send_status(Status::CGIError, None).await?;
+                    return Ok(true);
+                }
+            }
+            },
+            None => {
+                if meta.is_file() && perm.mode() & 0o0111 == 0o0111 {
+                    cgi::cgi(con, srv, path, url, script_name, path_info).await?;
+                    return Ok(true);
+                }
+            },
+        }
+    }
+    Ok(false)
+}
+
 // TODO Rewrite this monster.
 async fn handle_connection(
     mut con: conn::Connection,
@@ -237,6 +289,12 @@ async fn handle_connection(
     }
 
     if !path.exists() {
+        // See if it's a subpath of a CGI script before returning NotFound
+        #[cfg(feature = "cgi")]
+        if handle_cgi(&mut con, srv, &request, &url, &path).await? {
+            return Ok(());
+        }
+
         logger::logger(con.peer_addr, Status::NotFound, &request);
         con.send_status(Status::NotFound, None).await?;
         return Ok(());
@@ -272,28 +330,10 @@ async fn handle_connection(
     }
 
     #[cfg(feature = "cgi")]
-    if srv.server.cgi.unwrap_or(false) {
-        match &srv.server.cgipath {
-            Some(c) => {
-            if c.trim_end_matches("/") == path.parent().unwrap().to_str().unwrap() {
-                if perm.mode() & 0o0111 == 0o0111 {
-                    cgi::cgi(con, srv, path, url).await?;
-                    return Ok(());
-                } else {
-                    logger::logger(con.peer_addr, Status::CGIError, &request);
-                    con.send_status(Status::CGIError, None).await?;
-                    return Ok(());
-                }
-            }
-            },
-            None => {
-                if meta.is_file() && perm.mode() & 0o0111 == 0o0111 {
-                    cgi::cgi(con, srv, path, url).await?;
-                    return Ok(());
-                }
-            },
-        }
+    if handle_cgi(&mut con, srv, &request, &url, &path).await? {
+        return Ok(());
     }
+
     if meta.is_file() && perm.mode() & 0o0111 == 0o0111  {
         logger::logger(con.peer_addr, Status::NotFound, &request);
         con.send_status(Status::NotFound, None).await?;
