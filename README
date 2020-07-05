@@ -68,3 +68,4 @@ config file under "cgienv"
  - REMOTE_HOST
  - REMOTE_PORT
  - QUERY_STRING
+ - PATH_INFO
