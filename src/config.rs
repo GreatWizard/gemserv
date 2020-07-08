@@ -29,6 +29,8 @@ pub struct Server {
     pub usrdir: Option<bool>,
     #[cfg(feature = "proxy")]
     pub proxy: Option<HashMap<String, String>>,
+    #[cfg(feature = "proxy")]
+    pub proxy_all: Option<String>,
     pub redirect: Option<HashMap<String, String>>,
     #[cfg(feature = "scgi")]
     pub scgi: Option<HashMap<String, String>>,

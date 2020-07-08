@@ -1,5 +1,7 @@
 use std::io;
+use std::marker::Unpin;
 use std::net::SocketAddr;
+
 use tokio::net::TcpStream;
 use tokio::prelude::*;
 use tokio_openssl::SslStream;
@@ -38,6 +40,11 @@ impl Connection {
     pub async fn send_raw(&mut self, body: &[u8]) -> Result<(), io::Error> {
         self.stream.write_all(body).await?;
         self.stream.flush().await?;
+        Ok(())
+    }
+
+    pub async fn send_stream<S: AsyncRead + Unpin>(&mut self, reader: &mut S) -> Result<(), io::Error> {
+        tokio::io::copy(reader, &mut self.stream).await?;
         Ok(())
     }
 }

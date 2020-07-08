@@ -55,3 +55,39 @@ pub async fn proxy(addr: String, u: url::Url, mut con: conn::Connection) -> Resu
     con.send_raw(&buf).await?;
     Ok(())
 }
+
+pub async fn proxy_all(addr: &str, u: url::Url, mut con: conn::Connection) -> Result<(), io::Error> {
+    let mut connector = SslConnector::builder(SslMethod::tls()).unwrap();
+    connector.set_verify(openssl::ssl::SslVerifyMode::NONE);
+    let config = connector.build().configure().unwrap();
+
+    // TCP handshake
+    let stream = match TcpStream::connect(&addr).await {
+        Ok(s) => s,
+        Err(_) => {
+            logger::logger(con.peer_addr, Status::ProxyError, u.as_str());
+            con.send_status(Status::ProxyError, None).await?;
+            return Ok(());
+        }
+    };
+    let domain = addr.splitn(2, ':').next().unwrap();
+
+    // TLS handshake with SNI
+    let mut stream = match tokio_openssl::connect(config, domain, stream).await {
+        Ok(s) => s,
+        Err(_) => {
+            logger::logger(con.peer_addr, Status::ProxyError, u.as_str());
+            con.send_status(Status::ProxyError, None).await?;
+            return Ok(());
+        }
+    };
+
+    // send request: URL + CRLF
+    stream.write_all(u.as_ref().as_bytes()).await?;
+    stream.write_all(b"\r\n").await?;
+    stream.flush().await?;
+
+    // stream to client
+    con.send_stream(&mut stream).await?;
+    Ok(())
+}

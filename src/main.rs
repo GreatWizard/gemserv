@@ -239,6 +239,25 @@ async fn handle_connection(
     }
 
     #[cfg(feature = "proxy")]
+    if let Some(pr) = &srv.server.proxy_all {
+        let host_port: Vec<&str> = pr.splitn(2, ':').collect();
+        let host = host_port[0];
+        let port: Option<u16>;
+        if host_port.len() == 2 {
+            port = host_port[1].parse().ok();
+        } else {
+            port = None;
+        }
+
+        let mut upstream_url = url.clone();
+        upstream_url.set_host(Some(host)).unwrap();
+        upstream_url.set_port(port).unwrap();
+
+        revproxy::proxy_all(pr, upstream_url, con).await?;
+        return Ok(());
+    }
+
+    #[cfg(feature = "proxy")]
     match &srv.server.proxy {
         Some(pr) => match url.path_segments().map(|c| c.collect::<Vec<_>>()) {
             Some(s) => match pr.get(s[0]) {
