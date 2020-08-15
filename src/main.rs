@@ -75,8 +75,9 @@ async fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
         return Ok(tokio::fs::read_to_string(path).await?);
     }
 
-    let mut list = String::from("# Directory Listing\r\n\r\n");
-    list.push_str(&format!("Path: {}\r\n\r\n", u.path()));
+    let mut dirs: Vec<String> = Vec::new();
+    let mut files: Vec<String> = Vec::new();
+
     // needs work
     for file in fs::read_dir(&path)? {
         if let Ok(file) = file {
@@ -96,12 +97,26 @@ async fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
                 _ => continue,
             };
             if m.is_dir() {
-                list.push_str(&format!("=> {}/ {}/\r\n", ep, p.display()));
+                dirs.push(format!("=> {}/ {}/\r\n", ep, p.display()));
             } else {
-                list.push_str(&format!("=> {} {}\r\n", ep, p.display()));
+                files.push(format!("=> {}/ {}\r\n", ep, p.display()));
             }
         }
     }
+
+    dirs.sort();
+    files.sort();
+
+    let mut list = String::from("# Directory Listing\r\n\r\n");
+    list.push_str(&format!("Path: {}\r\n\r\n", u.path()));
+
+    for dir in dirs {
+        list.push_str(&dir);
+    }
+    for file in files {
+        list.push_str(&file);
+    }
+
     return Ok(list);
 }
 
