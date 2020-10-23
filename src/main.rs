@@ -182,12 +182,15 @@ async fn handle_connection(
         None => "index.gemini".to_string(),
     };
     let mut buffer = [0; 1024];
-    if let Err(_) = tokio::time::timeout(tokio::time::Duration::from_secs(5), con.stream.read(&mut buffer)).await {
-        logger::logger(con.peer_addr, Status::BadRequest, "");
-        con.send_status(Status::BadRequest, None).await?;
-        return Ok(());
-    }
-    let mut request = match String::from_utf8(buffer[..].to_vec()) {
+    let len = match tokio::time::timeout(tokio::time::Duration::from_secs(5), con.stream.read(&mut buffer)).await {
+        Ok(result) => result.unwrap(),
+        Err(_) => {
+            logger::logger(con.peer_addr, Status::BadRequest, "");
+            con.send_status(Status::BadRequest, None).await?;
+            return Ok(());
+        }
+    };
+    let mut request = match String::from_utf8(buffer[..len].to_vec()) {
         Ok(request) => request,
         Err(_) => {
             logger::logger(con.peer_addr, Status::BadRequest, "");
