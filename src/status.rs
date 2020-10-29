@@ -43,7 +43,7 @@ impl Status {
             Status::PermanentFailure => "Permanent Failure",
             Status::NotFound => "Not Found!",
             Status::Gone => "Gone!",
-            Status::ProxyRequestRefused => "Proxy Requet Refused",
+            Status::ProxyRequestRefused => "Proxy Request Refused",
             Status::BadRequest => "Bad Request!",
             Status::ClientCertificateRequired => "Client Certificate Required",
             Status::TransientCertificateRequested => "Transient Certificate Requested",
