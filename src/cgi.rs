@@ -137,13 +137,13 @@ pub async fn cgi(
         con.send_status(Status::CGIError, None).await?;
         return Ok(());
     }
-    let cmd = String::from_utf8(cmd.stdout).unwrap();
-    if !check(cmd.as_bytes()[0], con.peer_addr, url) {
+    let cmd = cmd.stdout;
+    if !check(cmd[0], con.peer_addr, url) {
         con.send_status(Status::CGIError, None).await?;
         return Ok(());
     }
 
-    con.send_raw(cmd.as_bytes()).await?;
+    con.send_raw(&cmd).await?;
     return Ok(());
 }
 
