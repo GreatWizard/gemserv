@@ -99,7 +99,7 @@ async fn get_content(path: PathBuf, u: url::Url) -> Result<String, io::Error> {
             if m.is_dir() {
                 dirs.push(format!("=> {}/ {}/\r\n", ep, p.display()));
             } else {
-                files.push(format!("=> {}/ {}\r\n", ep, p.display()));
+                files.push(format!("=> {} {}\r\n", ep, p.display()));
             }
         }
     }
