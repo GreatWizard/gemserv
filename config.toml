@@ -28,7 +28,7 @@ cgipath = "/path/to/cgi-bin/"
 scgi = { "/scgi" = "localhost:4000" }
 # cgienv is optional
 cgienv = { "GIT_PROJECT_ROOT" = "/srv/git" }
-# usrdir is optional. it'll look in /home/usr/public_gemini
+# usrdir is optional. it'll look in each user's ~/public_gemini
 usrdir = true
 # proxy is optional
 # path is what comes after the hostname e.g. example.com/path

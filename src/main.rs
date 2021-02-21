@@ -311,7 +311,11 @@ async fn handle_connection(
     if url.path().starts_with("/~") && srv.server.usrdir.unwrap_or(false) {
         let usr = url.path().trim_start_matches("/~");
         let usr: Vec<&str> = usr.splitn(2, "/").collect();
-        path.push("/home/");
+        if cfg!(target_os = "macos") {
+            path.push("/Users/");
+        } else {
+            path.push("/home/");
+        }
         if usr.len() == 2 {
             path.push(format!("{}/{}/{}", usr[0], "public_gemini", util::url_decode(usr[1].as_bytes())));
         } else {
