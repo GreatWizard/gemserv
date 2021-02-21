@@ -35,7 +35,7 @@ usrdir = true
 proxy = { path = "localhost:1966" }
 # proxy_all is optional
 # It will send all requests to the specified server. It also supports streamming.
-proxy_all = localhost:1967
+proxy_all = "localhost:1967"
 # redirect is optional
 redirect = { "/redirect" = "/", "/newdomain" = "gemini://example.net" }
 
